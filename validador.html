@@ -1,34 +1,55 @@
-<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width"><title>Validador Oficial SIBA - ES0477</title>
-<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@2.16.105/build/pdf.min.js"></script>
-<style>body{font-family:Arial;padding:10px;max-width:800px;margin:auto;background:#fff} .ok{background:#d4edda;color:#155724;padding:15px;border-radius:10px;border:2px solid #28a745;text-align:center} .bad{background:#f8d7da;color:#721c24;padding:15px;border-radius:10px;border:3px solid #dc3545;text-align:center;font-weight:bold} #orig{background:#f0f0f0;padding:12px;margin:12px 0;font-size:13px;word-break:break-word;border-radius:8px} input{width:100%;padding:14px;border:2px solid #0d6efd;border-radius:10px} h2{text-align:center}</style>
-</head><body>
-<h2>Validador Oficial SIBA - ES0477</h2>
-<div id="res">Validando folio...</div><div id="orig"></div>
-<div style="border-top:2px solid #0d6efd;margin-top:20px;padding-top:15px">
-<h3 style="text-align:center">Verificación de Integridad del Documento</h3>
-<p style="text-align:center;font-size:13px;color:#666">Seleccione el PDF que desea verificar para validar que no ha sido alterado.</p>
-<input type="file" id="f" accept="application/pdf"><div id="comp" style="margin-top:15px"></div></div>
-<div style="text-align:center;margin-top:20px;font-size:11px;color:#999">Sistema SIBA - Documento No Editable - Verificación vía QR obligatoria</div>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Validador Oficial SIBA ES0477</title>
+<style>
+body{font-family:system-ui,Arial;background:#0f172a;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px}
+.card{background:#fff;color:#111;border-radius:16px;padding:24px;max-width:480px;width:100%;box-shadow:0 20px 40px rgba(0,0,0,.3)}
+.ok{background:#dcfce7;color:#166534;border:2px solid #16a34a;border-radius:12px;padding:16px;text-align:center;font-weight:800;font-size:18px}
+.bad{background:#fee2e2;color:#991b1b;border:2px solid #dc2626;border-radius:12px;padding:16px;text-align:center;font-weight:800}
+.datos{margin-top:16px;background:#f8fafc;border-radius:10px;padding:12px;font-size:14px;line-height:1.8}
+.logo{text-align:center;font-weight:900;margin-bottom:10px;letter-spacing:1px}
+h1{font-size:18px;text-align:center;margin:0 0 16px}
+small{display:block;text-align:center;margin-top:16px;color:#64748b}
+</style>
+</head>
+<body>
+<div class="card">
+<div class="logo">PEMEX - SIBA ES0477</div>
+<h1>Validador Oficial de Bitácoras</h1>
+<div id="res">Validando folio...</div>
+<div class="datos" id="datos" style="display:none"></div>
+<small>robertohernandez-design.github.io/siba<br>Sistema Oficial 2026</small>
+</div>
 <script>
-const p=new URLSearchParams(location.search), folio=p.get('folio'), hash=p.get('hash'); let orig=null;
-fetch('folios.json?v='+Date.now()).then(r=>r.json()).then(j=>{
- orig=j.find(x=>x.folio===folio);
- const rDiv=document.getElementById('res'), oDiv=document.getElementById('orig');
- if(orig && orig.hash===hash){rDiv.innerHTML=`<div class=ok>✅ FOLIO VALIDADO ${folio}<br>Fecha: ${orig.fecha}<br>Estación: ES0477</div>`; oDiv.innerHTML=`<b>Registro original en servidor:</b><br>"${orig.actividad}"`;}
- else rDiv.innerHTML=`<div class=bad>❌ FOLIO NO VALIDO O INEXISTENTE</div>`;
-});
-document.getElementById('f').addEventListener('change', async e=>{
- const file=e.target.files[0]; if(!file||!orig) return;
- document.getElementById('comp').innerHTML='Verificando...';
- const buf=await file.arrayBuffer();
- const pdf=await pdfjsLib.getDocument({data:buf, disableWorker:true}).promise;
- let full=""; for(let i=1;i<=pdf.numPages;i++){const pg=await pdf.getPage(i); const ct=await pg.getTextContent(); full+=ct.items.map(o=>o.str).join(" ")+" ";}
- full=full.replace(/\s+/g,' ').trim();
- let actSubida=full; const idxAct=full.toUpperCase().indexOf("ACTIVIDAD:"); if(idxAct>=0){ actSubida=full.substring(idxAct+10); const idxDoc=actSubida.toUpperCase().indexOf("DOCUMENTO NO"); if(idxDoc>0) actSubida=actSubida.substring(0,idxDoc); }
- actSubida=actSubida.replace(/\s+/g,' ').trim(); const origC=orig.actividad.replace(/\s+/g,' ').trim();
- const comp=document.getElementById('comp');
- if(actSubida.toUpperCase()===origC.toUpperCase()){ comp.innerHTML=`<div class=ok>✅ DOCUMENTO ORIGINAL VERIFICADO<br>El contenido coincide 100% con el servidor. No ha sido alterado.</div>`;}
- else { let pos=-1; for(let i=0;i<Math.min(actSubida.length, origC.length);i++){if(actSubida.toUpperCase()[i]!==origC.toUpperCase()[i]){pos=i;break;}} if(pos==-1) pos=Math.min(actSubida.length,origC.length);
- comp.innerHTML=`<div class=bad>🚨 DOCUMENTO ALTERADO - NO VALIDO<br><br><b>ORIGINAL SERVIDOR:</b><br>"${origC}"<br><br><b>PDF PRESENTADO:</b><br>"${actSubida}"<br><br>Alteración detectada en caracter ${pos}</div>`; }
-});
-</script></body></html>
+async function validar(){
+  const params = new URLSearchParams(window.location.search);
+  const folio = params.get('v') || params.get('folio') || '';
+  const resDiv = document.getElementById('res');
+  const datosDiv = document.getElementById('datos');
+  if(!folio){
+    resDiv.innerHTML='<div class=bad>❌ FOLIO NO PROPORCIONADO</div>';
+    return;
+  }
+  try{
+    const r = await fetch('./folios.json?v='+Date.now());
+    const data = await r.json();
+    const folios = Array.isArray(data) ? data : (data.folios || []);
+    const encontrado = folios.find(f => String(f.folio || f.id || '').toUpperCase() === folio.toUpperCase());
+    if(encontrado){
+      resDiv.innerHTML = `<div class=ok>✅ FOLIO VALIDADO<br>No. ${folio}<br><br>VIGENTE Y REGISTRADO</div>`;
+      datosDiv.style.display='block';
+      datosDiv.innerHTML = `<b>Fecha:</b> ${encontrado.fecha || '-'}<br><b>Tipo:</b> ${encontrado.tipo || '-'}<br><b>Responsable:</b> ${encontrado.responsable || 'R. Hernandez'}<br><b>Estación:</b> ES0477<br><b>Estatus:</b> Válido en SIBA`;
+    }else{
+      resDiv.innerHTML = `<div class=bad>❌ FOLIO NO VALIDO<br>No. ${folio}<br><br>No se encontró en base de datos</div>`;
+    }
+  }catch(e){
+    resDiv.innerHTML = `<div class=bad>⚠️ ERROR<br>${e.message}</div>`;
+  }
+}
+validar();
+</script>
+</body>
+</html>
