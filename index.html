@@ -1,0 +1,53 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width"><title>SIBA V10</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>body{font-family:Arial;padding:12px;max-width:600px;margin:auto;background:#f8f9fa}textarea{width:100%;height:120px;padding:10px;box-sizing:border-box;text-transform:uppercase}input{width:100%;padding:12px;font-weight:bold;box-sizing:border-box}button{padding:16px;width:100%;color:#fff;border:0;border-radius:12px;font-size:18px;font-weight:bold;margin-top:12px;cursor:pointer}#qr{display:none}.preview-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}.preview-box{border:2px dashed #ccc;border-radius:8px;height:90px;overflow:hidden;background:#fff;position:relative;display:flex;align-items:center;justify-content:center}.preview-box img{width:100%;height:100%;object-fit:cover}.remove{position:absolute;top:2px;right:2px;background:red;color:white;border:0;border-radius:50%;width:20px;height:20px}#fileInput{display:none}.btn-foto{background:#0d6efd!important}.btn-gen{background:#198754!important}</style>
+</head><body>
+<h2 style="text-align:center">SIBA V10<br><small style="color:#198754">FOLIO 053 OFICIAL</small></h2>
+<label>FOLIO:</label><input id="folio" value="053"><label>ACTIVIDAD:</label><textarea id="act">SE REALIZÓ PRUEBA CON REGLETA Y PASTA PARA DESCARTAR PRESENCIA DE HIDROCARBUROS EN POZOS DE OBSERVACION.
+PRUEBAS DE HERMETICIDAD CON VEEDER ROOT Y CORTE (COMPARATIVO DE INVENTARIO)
+SE IMPRIME TIRA DE VEEDER ROOT PARA VERIFICAR NIVEL DE AGUA
+REVISIÓN FÍSICA DE REGISTROS Y CONTENEDORES
+REVISIÓN DE ELEMENTOS DE MOTOBOMBAS (DETECTOR MECANICO DE FUGAS, TUBING, TIERRA FISICA, SELLOS EYS, COPLES)
+REVISIÓN DE MANGUERA Y CODO DE DESCARGA
+SE REVISÓ FUNCIONAMIENTO Y ESTADO DE VALVULAS DE VENTEO
+SE REALIZÓ PRUEBA DE SENSORES EN AREA DE TANQUES Y DISPENSARIOS
+REVISIÓN FÍSICA DE CONTENEDORES (HERMETICOS Y SIN FISURAS)</textarea>
+<input type="file" id="fileInput" accept="image/*" multiple><button class="btn-foto" onclick="document.getElementById('fileInput').click()">📷 AGREGAR FOTOS (MAX 6)</button>
+<div id="preview" class="preview-grid"></div><div id="fotoStatus" style="font-size:12px">0/6</div>
+<button class="btn-gen" onclick="generar()">🔒 GENERAR</button><div id="qr"></div><div id="log" style="margin-top:15px;background:#fff;padding:12px;border:2px solid #000;border-radius:8px;font-size:13px">Listo V12 con respaldo</div>
+<script>
+let folios=[];let fotosData=[];
+fetch('folios.json?v='+Date.now()).then(r=>r.json()).then(j=>{folios=j; if(j.length==0){document.getElementById('folio').value='053'; document.getElementById('log').innerHTML='JSON nuevo - Iniciando en 053';}else{let max=52; j.forEach(f=>{let n=parseInt(f.folio); if(n>max) max=n;}); document.getElementById('folio').value=String(max+1).padStart(3,'0'); document.getElementById('log').innerHTML='Folios: '+j.length+' | Siguiente: '+String(max+1).padStart(3,'0')+' | Con respaldo.64';}}).catch(()=>{});
+document.getElementById('fileInput').addEventListener('change', async (e)=>{const files=Array.from(e.target.files); if(fotosData.length+files.length>6){alert('Max 6'); return;} for(let f of files){fotosData.push(await compressImage(f));} renderPreview(); e.target.value='';});
+function compressImage(file){return new Promise(res=>{const img=new Image(); img.onload=()=>{const c=document.createElement('canvas'); const MAX=600; let w=img.width,h=img.height; if(w>h){if(w>MAX){h*=MAX/w; w=MAX;}}else{if(h>MAX){w*=MAX/h; h=MAX;}} c.width=w; c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); res(c.toDataURL('image/jpeg',0.5));}; const r=new FileReader(); r.onload=e=>{img.src=e.target.result;}; r.readAsDataURL(file);});}
+function renderPreview(){const cont=document.getElementById('preview'); cont.innerHTML=''; fotosData.forEach((src,i)=>{const d=document.createElement('div'); d.className='preview-box'; d.innerHTML=`<img src="${src}"><button class="remove" onclick="fotosData.splice(${i},1);renderPreview()">X</button>`; cont.appendChild(d);}); for(let i=fotosData.length;i<6;i++){const d=document.createElement('div'); d.className='preview-box'; d.innerHTML='<span style="color:#aaa">Foto '+(i+1)+'</span>'; cont.appendChild(d);} document.getElementById('fotoStatus').innerText=fotosData.length+'/6';} renderPreview();
+function simpleHash(s){let h1=0x6A09E667,h2=0xBB67AE85; for(let i=0;i<s.length;i++){const c=s.charCodeAt(i); h1=Math.imul(h1 ^ c, 2654435761); h2=Math.imul(h2 ^ c, 1597334677);} return (h1>>>0).toString(16).padStart(8,'0')+(h2>>>0).toString(16).padStart(8,'0')+Date.now().toString(16);}
+async function generar(){
+ try{
+ const folio=document.getElementById('folio').value.padStart(3,'0'); const actividad=document.getElementById('act').value.trim().toUpperCase(); if(!actividad){alert('Escribe actividad'); return;}
+ document.getElementById('log').innerHTML='⏳ Generando y respaldando...';
+ const fecha=new Date().toLocaleString('es-MX'); const hash=simpleHash(folio+'|'+actividad+'|'+fecha+'|ES0477'); const urlVal=`http://192.168.1.64:8080/validador.html?folio=${folio}&hash=${hash}`;
+ document.getElementById('qr').innerHTML=''; new QRCode(document.getElementById('qr'),{text:urlVal,width:200,height:200}); await new Promise(r=>setTimeout(r,700));
+ const qrData=document.querySelector('#qr canvas').toDataURL('image/png');
+ const {jsPDF}=window.jspdf; const doc=new jsPDF();
+ doc.setFontSize(12); doc.setFont(undefined,'bold'); doc.text(`ACTA SIBA - FOLIO ${folio} - ES0477 - PEMEX`,10,12);
+ doc.setFontSize(7); doc.setFont(undefined,'normal'); doc.text(`Fecha: ${fecha} | HASH: ${hash.substring(0,30)}...`,10,16);
+ doc.setFontSize(8); doc.setFont(undefined,'bold'); doc.text('ACTIVIDAD:',10,21); doc.setFont(undefined,'normal'); doc.setFontSize(7.5);
+ const lines=doc.splitTextToSize(actividad,125); doc.text(lines,10,25);
+ doc.addImage(qrData,'PNG',145,20,32,32); doc.setFontSize(5.5); doc.text('VALIDAR QR',152,53);
+ let yBase=25+lines.length*2.8+4; if(yBase<56) yBase=56;
+ doc.setFontSize(8); doc.setFont(undefined,'bold'); doc.text('EVIDENCIA FOTOGRAFICA:',10,yBase); yBase+=3;
+ for(let i=0;i<fotosData.length;i++){let col=i%3,row=Math.floor(i/3),x=10+col*65,y=yBase+row*42; try{doc.addImage(fotosData[i],'JPEG',x,y,60,36);}catch(e){} doc.setFontSize(5); doc.text(`Foto ${i+1}`,x,y+38);}
+ doc.setFontSize(5.5); doc.text(`Fotos: ${fotosData.length}/6 | 192.168.1.64:8080 | Folio blindado ES0477`,10,287);
+ const pdfBase64 = doc.output('datauristring');
+ doc.save(`SIBA_FOLIO_${folio}.pdf`);
+ document.getElementById('log').innerHTML=`✅ PDF ${folio} descargado. Guardando respaldo...`;
+ folios.push({folio, fecha, hash, actividad, fotos:fotosData.length, estacion:'ES0477'});
+ await fetch('guardar.php',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(folios)});
+ await fetch('guardar_pdf.php',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({folio:folio, pdf:pdfBase64})});
+ document.getElementById('log').innerHTML=`<div style="color:green;font-weight:bold">✅ FOLIO ${folio} GUARDADO + PDF RESPALDADO EN.64/pdfs/</div>Si borras el PDF de tu cel, lo recuperas en http://192.168.1.64:8080/pdfs/ | Siguiente: ${String(parseInt(folio)+1).padStart(3,'0')}`;
+ document.getElementById('folio').value=String(parseInt(folio)+1).padStart(3,'0'); fotosData=[]; renderPreview();
+ }catch(err){document.getElementById('log').innerHTML=`<div style="color:red">❌ ${err.message}</div>`;}
+}
+</script></body></html>
