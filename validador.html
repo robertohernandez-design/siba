@@ -1,35 +1,10 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Validador Oficial SIBA ES0477</title>
-<style>
-body{font-family:system-ui,Arial;background:#0f172a;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px}
-.card{background:#fff;color:#111;border-radius:16px;padding:24px;max-width:480px;width:100%;box-shadow:0 20px 40px rgba(0,0,0,.3)}
-.ok{background:#dcfce7;color:#166534;border:2px solid #16a34a;border-radius:12px;padding:16px;text-align:center;font-weight:800;font-size:18px}
-.bad{background:#fee2e2;color:#991b1b;border:2px solid #dc2626;border-radius:12px;padding:16px;text-align:center;font-weight:800}
-.datos{margin-top:16px;background:#f8fafc;border-radius:10px;padding:12px;font-size:14px;line-height:1.8}
-.logo{text-align:center;font-weight:900;margin-bottom:10px;letter-spacing:1px}
-h1{font-size:18px;text-align:center;margin:0 0 16px}
-small{display:block;text-align:center;margin-top:16px;color:#64748b}
-</style>
-</head>
-<body>
-<div class="card">
-<div class="logo">PEMEX - SIBA ES0477</div>
-<h1>Validador Oficial de Bitácoras</h1>
-<div id="res">Validando folio...</div>
-<div class="datos" id="datos" style="display:none"></div>
-<small>robertohernandez-design.github.io/siba<br>Sistema Oficial 2026</small>
-</div>
 <script>
 async function validar(){
   const params = new URLSearchParams(window.location.search);
-  const folio = params.get('v') || params.get('folio') || '';
+  const folioParam = (params.get('v') || params.get('folio') || '').trim();
   const resDiv = document.getElementById('res');
   const datosDiv = document.getElementById('datos');
-  if(!folio){
+  if(!folioParam){
     resDiv.innerHTML='<div class=bad>❌ FOLIO NO PROPORCIONADO</div>';
     return;
   }
@@ -37,13 +12,25 @@ async function validar(){
     const r = await fetch('./folios.json?v='+Date.now());
     const data = await r.json();
     const folios = Array.isArray(data) ? data : (data.folios || []);
-    const encontrado = folios.find(f => String(f.folio || f.id || '').toUpperCase() === folio.toUpperCase());
+    
+    // Saca el hash y el número de folio del parametro largo
+    const partes = folioParam.split('-');
+    const hashBuscado = partes.pop().toLowerCase();
+    const numFolioBuscado = partes.pop(); // 053
+
+    const encontrado = folios.find(f => {
+      const hashJson = String(f.hash || '').toLowerCase().trim();
+      const numJson = String(f.folio || '').trim();
+      // Compara por HASH o por numero de folio
+      return hashJson === hashBuscado || numJson === numFolioBuscado || folioParam.toUpperCase().includes(hashJson.toUpperCase());
+    });
+
     if(encontrado){
-      resDiv.innerHTML = `<div class=ok>✅ FOLIO VALIDADO<br>No. ${folio}<br><br>VIGENTE Y REGISTRADO</div>`;
+      resDiv.innerHTML = `<div class=ok>✅ FOLIO VALIDADO<br>No. ${folioParam}<br><br>VIGENTE Y REGISTRADO</div>`;
       datosDiv.style.display='block';
-      datosDiv.innerHTML = `<b>Fecha:</b> ${encontrado.fecha || '-'}<br><b>Tipo:</b> ${encontrado.tipo || '-'}<br><b>Responsable:</b> ${encontrado.responsable || 'R. Hernandez'}<br><b>Estación:</b> ES0477<br><b>Estatus:</b> Válido en SIBA`;
+      datosDiv.innerHTML = `<b>Fecha:</b> ${encontrado.fecha || '-'}<br><b>Actividad:</b> ${(encontrado.actividad || '').substring(0,200)}...<br><b>Estación:</b> ${encontrado.estacion || 'ES0477'}<br><b>Fotos:</b> ${encontrado.fotos || 0}<br><b>Hash:</b> ${encontrado.hash}<br><b>Estatus:</b> Válido en SIBA`;
     }else{
-      resDiv.innerHTML = `<div class=bad>❌ FOLIO NO VALIDO<br>No. ${folio}<br><br>No se encontró en base de datos</div>`;
+      resDiv.innerHTML = `<div class=bad>❌ FOLIO NO VALIDO<br>No. ${folioParam}<br><br>No se encontró en base de datos</div>`;
     }
   }catch(e){
     resDiv.innerHTML = `<div class=bad>⚠️ ERROR<br>${e.message}</div>`;
@@ -51,5 +38,3 @@ async function validar(){
 }
 validar();
 </script>
-</body>
-</html>
