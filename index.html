@@ -3,114 +3,186 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SIBA ES0477 V15 AUTO GITHUB</title>
+<title>SIBA AUTO V16 - FIX</title>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-<style>body{font-family:system-ui;background:#f1f5f9;margin:0;padding:12px}.card{max-width:800px;margin:0 auto;background:#fff;border-radius:16px;padding:20px}input,select,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;box-sizing:border-box}.btn{background:#0f172a;color:#fff;border:0;padding:14px;border-radius:10px;font-weight:700;cursor:pointer;width:100%;margin-bottom:10px}.btn-green{background:#16a34a}.qrbox{margin-top:15px;border:2px dashed #16a34a;border-radius:12px;padding:16px;text-align:center}.link{word-break:break-all;background:#f8fafc;padding:8px;border-radius:6px;font-size:11px;margin-top:8px;text-align:left}.token-box{background:#fef3c7;border:1px solid #f59e0b;padding:12px;border-radius:8px;margin-bottom:15px}</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+body{font-family:system-ui, -apple-system, sans-serif;background:#0f172a;color:#fff;padding:15px;max-width:500px;margin:0 auto}
+.card{background:#1e293b;border-radius:16px;padding:18px;margin-bottom:15px;border:1px solid #334155}
+h2{margin:0 0 10px;font-size:20px}
+label{font-size:13px;color:#94a3b8;display:block;margin:8px 0 4px}
+input,select{width:100%;padding:12px;border-radius:10px;border:1px solid #475569;background:#0f172a;color:#fff;font-size:15px;box-sizing:border-box}
+button{width:100%;padding:14px;border-radius:12px;border:0;font-weight:800;font-size:16px;cursor:pointer;margin-top:10px}
+.btn-yellow{background:#facc15;color:#000}
+.btn-green{background:#22c55e;color:#000}
+.token-box{background:#fef08a;color:#000;padding:12px;border-radius:10px;font-size:13px;margin:10px 0}
+.ok{color:#4ade80;font-weight:700}
+.err{color:#f87171;font-weight:700}
+#qrcode{display:flex;justify-content:center;background:#fff;padding:15px;border-radius:12px;margin:15px 0}
+.log{font-size:12px;background:#000;padding:10px;border-radius:8px;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow:auto;margin-top:10px}
+</style>
 </head>
 <body>
+<h2>🚀 SIBA AUTO V16 - FIX APPEND</h2>
 <div class="card">
-<h2>SIBA ES0477 - V15 AUTO GITHUB</h2>
-<p>Repo: <b>robertohernandez-design/siba</b> | Folio: <b id="foliolbl">054</b></p>
-
-<div class="token-box">
-<b>🔑 Token GitHub (solo 1ra vez):</b>
-<input id="token" type="password" placeholder="pega tu token ghp_... aquí">
-<button onclick="guardarToken()" style="width:auto;padding:6px 12px;font-size:12px">Guardar Token en este celular</button>
-<p style="font-size:10px;margin:5px 0 0">Se guarda local, no se sube a GitHub. Caduca en 90 días.</p>
-<div id="tokenStatus" style="font-size:11px;font-weight:700;margin-top:5px"></div>
+<label>1. Pega tu GitHub Token (ghp_...):</label>
+<input id="token" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+<button class="btn-yellow" onclick="guardarToken()">💾 Guardar Token en este celular</button>
+<div id="tokenStatus" class="log">Token no guardado</div>
 </div>
 
-Fecha: <input id="fecha" type="date">
-Tipo: <select id="tipo"><option>Inicio de Turno</option><option>Fin de Turno</option><option>Prueba con regleta</option><option>Hermeticidad Veeder Root</option></select>
-Responsable: <input id="responsable" value="R. Hernandez">
-Actividad: <textarea id="actividad" rows="3">SE REALIZÓ PRUEBA CON REGLETA Y PASTA PARA DESCARTAR PRESENCIA DE HIDROCARBUROS EN POZOS DE OBSERVACION.</textarea>
-
-<button class="btn" onclick="generarYSubir()">🚀 GENERAR 054 Y SUBIR AUTOMÁTICO A GITHUB</button>
-
-<div class="qrbox">
-<div id="qrcode" style="display:flex;justify-content:center"></div>
-<div id="qrtext" class="link"></div>
-<div id="status" style="margin-top:10px;font-weight:700;font-size:13px"></div>
+<div class="card">
+<label>Tipo de registro:</label>
+<select id="tipo">
+<option value="Inicio de Turno">Inicio de Turno</option>
+<option value="Fin de Turno">Fin de Turno</option>
+<option value="Prueba con regleta">Prueba con regleta</option>
+<option value="Prueba">Prueba</option>
+</select>
+<label>Observaciones:</label>
+<input id="obs" value="Prueba V16 auto-append">
+<div style="margin-top:12px;padding:10px;background:#0f172a;border-radius:8px;font-size:13px">
+Folio siguiente detectado: <b id="nextFolio">Cargando...</b><br>
+Folios actuales en GitHub: <span id="count">-</span>
 </div>
+<button class="btn-green" onclick="generar()">🚀 GENERAR Y SUBIR AUTOMÁTICO A GITHUB</button>
+<div id="status" class="log">Esperando...</div>
+<div id="qrcode"></div>
+<div id="link"></div>
 </div>
 
 <script>
-const BASE = "https://robertohernandez-design.github.io/siba";
 const REPO_OWNER = "robertohernandez-design";
 const REPO_NAME = "siba";
 const FILE_PATH = "folios.json";
-const ESTACION = "ES0477";
-let folioNum = 54;
+let foliosActuales = [];
+let shaActual = null;
 
-document.getElementById('fecha').valueAsDate = new Date();
-document.getElementById('foliolbl').innerText = String(folioNum).padStart(3,'0');
-
-// Cargar token guardado
-if(localStorage.getItem('gh_token')){
-  document.getElementById('token').value = localStorage.getItem('gh_token');
-  document.getElementById('tokenStatus').innerText = "✅ Token cargado";
-  document.getElementById('tokenStatus').style.color = "green";
+function log(msg, isError=false){
+  const el = document.getElementById('status');
+  el.innerHTML = (isError? '<span class=err>'+msg+'</span>' : '<span class=ok>'+msg+'</span>') + "\n" + el.innerHTML;
 }
 
 function guardarToken(){
   const t = document.getElementById('token').value.trim();
-  if(!t.startsWith('ghp_') &&!t.startsWith('github_pat_')){ alert('Token debe empezar con ghp_...'); return; }
-  localStorage.setItem('gh_token', t);
-  document.getElementById('tokenStatus').innerText = "✅ Token guardado en este celular";
-  document.getElementById('tokenStatus').style.color = "green";
+  if(!t.startsWith('ghp_') &&!t.startsWith('github_pat_')){ alert('Token inválido, debe empezar con ghp_'); return; }
+  localStorage.setItem('siba_token_v16', t);
+  document.getElementById('tokenStatus').innerHTML = '✅ Token guardado en este celular<br>Longitud: '+t.length;
+  log('✅ Token guardado');
 }
+(function cargarToken(){
+  const t = localStorage.getItem('siba_token_v16');
+  if(t){ document.getElementById('token').value = t; document.getElementById('tokenStatus').innerHTML = '✅ Token guardado en este celular<br>Longitud: '+t.length; }
+})();
 
-function simpleHash(str){
-  let hash=0; for(let i=0;i<str.length;i++){hash=((hash<<5)-hash)+str.charCodeAt(i); hash|=0;}
-  return Math.abs(hash).toString(16).padStart(8,'0') + Math.random().toString(16).substring(2,10);
-}
-
-async function generarYSubir(){
-  const token = localStorage.getItem('gh_token') || document.getElementById('token').value.trim();
-  if(!token){ alert('Primero pega tu token ghp_ y guarda'); return; }
-
-  const folio = String(folioNum).padStart(3,'0');
-  const fechaInput = document.getElementById('fecha').value;
-  const [yyyy,mm,dd] = fechaInput.split('-');
-  const tipo = document.getElementById('tipo').value;
-  const hash = simpleHash(`${ESTACION}-${fechaInput}-${folio}-${Date.now()}`).substring(0,16);
-  const folioCompleto = `${ESTACION}-${yyyy}-${mm}-${dd}-${folio}-${hash}`;
-  const urlPub = `${BASE}/validador.html?v=${folioCompleto}`;
-
-  // Mostrar QR inmediatamente
-  document.getElementById('qrcode').innerHTML='';
-  new QRCode(document.getElementById('qrcode'),{text:urlPub,width:240,height:240});
-  document.getElementById('qrtext').innerText = urlPub;
-  document.getElementById('status').innerHTML = "⏳ Subiendo a GitHub...";
-
+async function cargarFolios(){
   try{
-    // 1. Obtener folios.json actual y su SHA
-    const getResp = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`,{
-      headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.v3+json'}
+    const res = await fetch(`https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/${FILE_PATH}?t=${Date.now()}`);
+    if(!res.ok) throw new Error('No se pudo leer folios.json');
+    const data = await res.json();
+    foliosActuales = Array.isArray(data)? data : [];
+    document.getElementById('count').textContent = foliosActuales.length;
+    let maxNum = 52;
+    foliosActuales.forEach(f=>{
+      const m2 = f.folio? f.folio.match(/-(\d+)-[a-f0-9]{8,}/) : null;
+      if(m2) { const n = parseInt(m2[1]); if(n>maxNum) maxNum=n; }
     });
-    if(!getResp.ok) throw new Error('No pude leer folios.json - revisa token y repo');
-    const fileData = await getResp.json();
-    const currentContent = JSON.parse(atob(fileData.content));
-    const sha = fileData.sha;
+    const next = maxNum+1;
+    document.getElementById('nextFolio').textContent = String(next).padStart(3,'0');
+    log('Folios cargados: '+foliosActuales.length+' - Siguiente: '+String(next).padStart(3,'0'));
+  }catch(e){
+    log('Error cargando folios: '+e.message, true);
+    document.getElementById('nextFolio').textContent = '054';
+  }
+}
+cargarFolios();
 
-    // 2. Agregar nuevo folio
-    currentContent[folioCompleto] = {hash:hash, fecha:new Date().toLocaleString('es-MX'), tipo:tipo};
-    const newContentStr = JSON.stringify(currentContent, null, 2);
-    const newContentB64 = btoa(unescape(encodeURIComponent(newContentStr)));
+async function getFileSha(token){
+  const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
+    headers:{ 'Authorization':'Bearer '+token, 'Accept':'application/vnd.github+json' }
+  });
+  if(!res.ok){ const t=await res.text(); throw new Error('Error obteniendo SHA: '+res.status+' '+t); }
+  const j = await res.json();
+  return {sha:j.sha, content: atob(j.content.replace(/\n/g,''))};
+}
 
-    // 3. Subir actualizado
-    const putResp = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`,{
+async function generar(){
+  const token = document.getElementById('token').value.trim() || localStorage.getItem('siba_token_v16');
+  if(!token){ alert('Pega tu token primero'); return; }
+  const tipo = document.getElementById('tipo').value;
+  const obs = document.getElementById('obs').value;
+  log('⏳ Iniciando...');
+  try{
+    log('⏳ Leyendo folios.json desde GitHub API...');
+    const fileInfo = await getFileSha(token);
+    shaActual = fileInfo.sha;
+    let arr;
+    try{ arr = JSON.parse(fileInfo.content); }catch(e){ arr = []; }
+    if(!Array.isArray(arr)) arr = [];
+    log('✅ Leído: '+arr.length+' folios. SHA: '+shaActual.substring(0,7));
+
+    let maxNum = 0;
+    arr.forEach(f=>{
+      const m = f.folio? f.folio.match(/-(\d+)-[a-f0-9]{6,}/) : null;
+      if(m){ const n=parseInt(m[1]); if(n>maxNum) maxNum=n; }
+    });
+    if(maxNum===0) maxNum=53;
+    const nextNum = maxNum+1;
+    const nextStr = String(nextNum).padStart(3,'0');
+
+    const fecha = new Date().toISOString().slice(0,10);
+    const randomHex = Math.random().toString(16).substring(2,10) + Math.random().toString(16).substring(2,10);
+    const folioId = `ES0477-${fecha}-${nextStr}-${randomHex}`;
+
+    log(`⏳ Generando folio ${folioId}...`);
+
+    const nuevo = {
+      folio: folioId,
+      fecha: fecha,
+      tipo: tipo,
+      observaciones: obs,
+      timestamp: new Date().toISOString(),
+      equipo: "ES0477"
+    };
+
+    arr.push(nuevo);
+
+    const newContent = JSON.stringify(arr, null, 2);
+    const b64 = btoa(unescape(encodeURIComponent(newContent)));
+
+    log('⏳ Subiendo a GitHub...');
+    const putRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
       method:'PUT',
-      headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
-      body:JSON.stringify({message:`Add folio ${folioCompleto} auto V15`, content:newContentB64, sha:sha, branch:'main'})
+      headers:{ 'Authorization':'Bearer '+token, 'Accept':'application/vnd.github+json', 'Content-Type':'application/json' },
+      body: JSON.stringify({
+        message: `Add folio ${folioId}`,
+        content: b64,
+        sha: shaActual
+      })
     });
-    if(!putResp.ok){ const err = await putResp.text(); throw new Error(err); }
+    if(!putRes.ok){ const t=await putRes.text(); throw new Error('Error PUT: '+putRes.status+' '+t); }
 
-    document.getElementById('status').innerHTML = `✅ FOLIO ${folioCompleto}<br>SUBIDO AUTOMÁTICO A GITHUB<br><br>En 20-40 seg validará verde en:<br>${urlPub}<br><br>Ya puedes generar tu PDF con este QR`;
-    folioNum++; document.getElementById('foliolbl').innerText = String(folioNum).padStart(3,'0');
+    log('✅ FOLIO '+folioId+' SUBIDO AUTOMÁTICO A GITHUB', false);
+
+    const valUrl = `https://robertohernandez-design.github.io/siba/validador.html?v=${folioId}`;
+    document.getElementById('qrcode').innerHTML='';
+    new QRCode(document.getElementById('qrcode'), {text: valUrl, width:200, height:200});
+    document.getElementById('link').innerHTML = `<div class=log>✅ URL:<br><a href="${valUrl}" target="_blank" style="color:#4ade80">${valUrl}</a></div>`;
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.text(`SIBA - ${folioId}`, 10, 20);
+    doc.text(`Tipo: ${tipo}`, 10, 30);
+    doc.text(`Fecha: ${fecha}`, 10, 40);
+    doc.text(`Obs: ${obs}`, 10, 50);
+    doc.text(valUrl, 10, 60);
+    doc.save(folioId+'.pdf');
+
+    document.getElementById('count').textContent = arr.length;
+    document.getElementById('nextFolio').textContent = String(nextNum+1).padStart(3,'0');
 
   }catch(e){
-    document.getElementById('status').innerHTML = `❌ Error: ${e.message}<br><br>El QR sí está bueno, pero no se subió solo.<br>Copia manual: "${folioCompleto}": {"hash":"${hash}"}`;
+    log('❌ ERROR: '+e.message, true);
     console.error(e);
   }
 }
