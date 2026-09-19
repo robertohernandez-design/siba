@@ -3,43 +3,101 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SIBA ES0477 V13 PUBLICO</title>
+<title>SIBA ES0477 V14 PUBLICO - FINAL</title>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-<style>body{font-family:system-ui;background:#f1f5f9;margin:0;padding:20px}.card{max-width:800px;margin:0 auto;background:#fff;border-radius:16px;padding:24px}input,select{width:100%;padding:10px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px}.btn{background:#0f172a;color:#fff;border:0;padding:12px 18px;border-radius:10px;font-weight:700;cursor:pointer;width:100%}.qrbox{margin-top:20px;border:2px dashed #cbd5e1;border-radius:12px;padding:16px;text-align:center}.link{word-break:break-all;background:#f8fafc;padding:8px;border-radius:6px;font-size:12px}</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>body{font-family:system-ui;background:#f1f5f9;margin:0;padding:20px}.card{max-width:800px;margin:0 auto;background:#fff;border-radius:16px;padding:24px}input,select,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;box-sizing:border-box}.btn{background:#0f172a;color:#fff;border:0;padding:12px 18px;border-radius:10px;font-weight:700;cursor:pointer;width:100%;margin-bottom:10px}.btn2{background:#16a34a}.qrbox{margin-top:20px;border:2px dashed #cbd5e1;border-radius:12px;padding:16px;text-align:center}.link{word-break:break-all;background:#f8fafc;padding:8px;border-radius:6px;font-size:11px;margin-top:8px}</style>
 </head>
 <body>
 <div class="card">
-<h1>SIBA ES0477 - V13 QR PUBLICO</h1>
-<p>Folio actual: <b id="foliolbl">054</b> | Servidor local: 192.168.1.64:8080</p>
+<h1>SIBA ES0477 - V14 PUBLICO FINAL</h1>
+<p>Folio actual: <b id="foliolbl">054</b> | Validación: <b>robertohernandez-design.github.io/siba</b></p>
 Fecha: <input id="fecha" type="date">
-Tipo: <select id="tipo"><option>Inicio de Turno</option><option>Fin de Turno</option><option>Prueba</option></select>
+Tipo: <select id="tipo"><option>Inicio de Turno</option><option>Fin de Turno</option><option>Prueba con regleta</option><option>Hermeticidad Veeder Root</option></select>
 Responsable: <input id="responsable" value="R. Hernandez">
-<button class="btn" onclick="generar()">GENERAR BITÁCORA Y QR PÚBLICO</button>
+Actividad: <textarea id="actividad" rows="4">SE REALIZÓ PRUEBA CON REGLETA Y PASTA PARA DESCARTAR PRESENCIA DE HIDROCARBUROS EN POZOS DE OBSERVACION.</textarea>
+
+<button class="btn" onclick="generar()">1. GENERAR BITÁCORA Y QR PÚBLICO</button>
+<button class="btn btn2" id="btnJson" style="display:none" onclick="descargarJson()">2. DESCARGAR folios.json ACTUALIZADO</button>
+<button class="btn" id="btnPdf" style="display:none" onclick="descargarPdf()">3. DESCARGAR PDF PARA PEMEX</button>
+
 <div class="qrbox">
 <div id="qrcode" style="display:flex;justify-content:center"></div>
 <div id="qrtext" class="link"></div>
 <div id="status" style="margin-top:10px;font-weight:700"></div>
+<div id="jsonPreview" class="link" style="text-align:left;display:none"></div>
 </div>
-<p style="font-size:11px;color:#64748b;margin-top:20px">Después de generar, debes actualizar tu folios.json en GitHub con el nuevo folio para que valide en público.</p>
 </div>
 <script>
 const BASE = "https://robertohernandez-design.github.io/siba";
+const ESTACION = "ES0477";
 let folioNum = 54;
+let ultimoFolioCompleto = "";
+let ultimoHash = "";
+let ultimoPdfData = null;
+
 document.getElementById('fecha').valueAsDate = new Date();
 document.getElementById('foliolbl').innerText = String(folioNum).padStart(3,'0');
+
+function simpleHash(str){
+  let hash=0; for(let i=0;i<str.length;i++){hash=((hash<<5)-hash)+str.charCodeAt(i); hash|=0;}
+  return Math.abs(hash).toString(16).padStart(8,'0') + Math.random().toString(16).substring(2,8);
+}
+
 function generar(){
   const folio = String(folioNum).padStart(3,'0');
-  const fecha = document.getElementById('fecha').value;
+  const fechaInput = document.getElementById('fecha').value; // YYYY-MM-DD
+  const [yyyy, mm, dd] = fechaInput.split('-');
   const tipo = document.getElementById('tipo').value;
-  const urlPub = `${BASE}/validador.html?v=${folio}`;
+  const responsable = document.getElementById('responsable').value;
+  const actividad = document.getElementById('actividad').value;
+  
+  const strParaHash = `${ESTACION}-${fechaInput}-${folio}-${tipo}-${responsable}-${Date.now()}`;
+  const hash = simpleHash(strParaHash).substring(0,16); // 16 chars como tu 053
+  const folioCompleto = `${ESTACION}-${yyyy}-${mm}-${dd}-${folio}-${hash}`;
+  
+  ultimoFolioCompleto = folioCompleto;
+  ultimoHash = hash;
+  
+  const urlPub = `${BASE}/validador.html?v=${folioCompleto}`;
+  
   document.getElementById('qrcode').innerHTML='';
-  new QRCode(document.getElementById('qrcode'),{text:urlPub,width:220,height:220});
+  new QRCode(document.getElementById('qrcode'),{text:urlPub,width:240,height:240});
   document.getElementById('qrtext').innerText = urlPub;
-  // Guarda local
-  fetch('http://192.168.1.64:8080/guardar.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({folio:folio,fecha:fecha,tipo:tipo,responsable:document.getElementById('responsable').value,timestamp:new Date().toLocaleString()})}).then(r=>r.text()).then(t=>{
-    document.getElementById('status').innerHTML=`✅ Local OK: ${t}<br><br>⚠️ PASO FINAL: Ve a GitHub > folios.json > Edit y agrega el folio ${folio} para que valide público`;
-    folioNum++; document.getElementById('foliolbl').innerText = String(folioNum).padStart(3,'0');
-  }).catch(e=>{document.getElementById('status').innerHTML=`QR Generado (sin conexión local)<br>${e}`;});
+  
+  const fechaLarga = new Date().toLocaleString('es-MX');
+  const jsonEntry = `"${folioCompleto}": { "hash": "${hash}", "fecha": "${fechaLarga}", "tipo": "${tipo}" }`;
+  
+  document.getElementById('status').innerHTML = `✅ QR PÚBLICO GENERADO<br>Folio: ${folioCompleto}<br><br>Ahora descarga el JSON y súbelo a GitHub`;
+  document.getElementById('jsonPreview').style.display='block';
+  document.getElementById('jsonPreview').innerText = `Agrega esto a tu folios.json:\n\n${jsonEntry}`;
+  
+  document.getElementById('btnJson').style.display='block';
+  document.getElementById('btnPdf').style.display='block';
+  
+  ultimoPdfData = {folio, folioCompleto, hash, fechaLarga, fechaInput, tipo, actividad, responsable, urlPub};
+  
+  folioNum++;
+  document.getElementById('foliolbl').innerText = String(folioNum).padStart(3,'0');
+}
+
+function descargarJson(){
+  // Esto te da el folios.json actualizado - solo copia y pega en GitHub
+  const contenido = `{\n  "${ultimoFolioCompleto}": {\n    "hash": "${ultimoHash}",\n    "fecha": "${new Date().toLocaleString('es-MX')}",\n    "tipo": "bitacora"\n  }\n}`;
+  const blob = new Blob([contenido], {type:'application/json'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`nuevo_folio_${ultimoFolioCompleto}.json`; a.click();
+  alert('Ahora ve a GitHub > tu repo > siba/folios.json > Edit > pega esta entrada. Si quieres te genero el archivo completo con el 053 + este nuevo.');
+}
+
+function descargarPdf(){
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFontSize(12); doc.text(`ACTA SIBA - FOLIO ${ultimoPdfData.folio} - ES0477 - PEMEX`, 10, 15);
+  doc.setFontSize(8); doc.text(`Fecha: ${ultimoPdfData.fechaLarga} | HASH: ${ultimoPdfData.hash} | ID: ${ultimoPdfData.folioCompleto}`, 10, 22);
+  doc.setFontSize(9); doc.text(`Actividad: ${ultimoPdfData.actividad.substring(0,80)}`, 10, 30);
+  doc.text(`Validacion: ${BASE}/validador.html`, 10, 280);
+  doc.text(`URL: ${ultimoPdfData.urlPub}`, 10, 285);
+  doc.save(`SIBA_FOLIO_${ultimoPdfData.folio}_ES0477.pdf`);
 }
 </script>
 </body>
