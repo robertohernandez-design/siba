@@ -2,87 +2,142 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SIBA V18 QR PDF</title>
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIBA ES0477 - Generador V21</title>
 <style>
-body{font-family:system-ui;background:#0f172a;color:#fff;padding:15px;max-width:520px;margin:0 auto}
-.card{background:#1e293b;border-radius:16px;padding:18px;margin-bottom:15px;border:1px solid #334155}
-label{font-size:13px;color:#94a3b8;display:block;margin:8px 0 4px}
-input,select,textarea{width:100%;padding:12px;border-radius:10px;border:1px solid #475569;background:#0f172a;color:#fff;font-size:15px;box-sizing:border-box}
-button{width:100%;padding:14px;border-radius:12px;border:0;font-weight:800;font-size:16px;cursor:pointer;margin-top:10px}
+body{background:#0f172a;color:#e2e8f0;font-family:system-ui;padding:15px}
+.card{background:#1e293b;border-radius:12px;padding:15px;margin-bottom:15px}
+input,select,textarea{width:100%;background:#0f172a;color:#fff;border:1px solid #334155;border-radius:8px;padding:10px;margin:5px 0}
+button{width:100%;padding:12px;border:none;border-radius:8px;font-weight:bold;cursor:pointer;margin-top:10px}
 .btn-yellow{background:#facc15;color:#000}
 .btn-green{background:#22c55e;color:#000}
-.btn-red{background:#ef4444;color:#fff}
-.log{font-size:12px;background:#000;padding:10px;border-radius:8px;white-space:pre-wrap;word-break:break-all;max-height:250px;overflow:auto;margin-top:10px}
-#qrcode{display:flex;justify-content:center;background:#fff;padding:15px;border-radius:12px;margin:15px 0}
-.ok{color:#4ade80}.err{color:#f87171}
+.log{background:#000;color:#22c55e;padding:10px;border-radius:8px;font-size:12px;margin-top:10px;min-height:20px}
 </style>
 </head>
 <body>
-<h2>🚀 SIBA V18 - CON QR EN PDF</h2>
 <div class="card">
-<label>Token:</label>
 <input id="token" type="password" placeholder="ghp_...">
 <button class="btn-yellow" onclick="guardarToken()">💾 Guardar Token</button>
-<div id="tokenStatus" class="log"></div>
-<div style="margin-top:10px;background:#0f172a;padding:10px;border-radius:8px;font-size:13px">
-Folios: <span id="count">-</span> | Siguiente: <b id="nextFolio">-</b>
+<div id="info" style="background:#0f172a;padding:8px;border-radius:6px;margin-top:10px;font-size:13px">Folios: - | Siguiente: -</div>
 </div>
-</div>
+
 <div class="card">
 <label>Tipo:</label>
-<select id="tipo"><option>Inicio de Turno</option><option>Fin de Turno</option><option>Prueba con regleta</option><option>Prueba</option></select>
+<select id="tipo">
+<option>Inicio de Turno</option>
+<option>Prueba con regleta</option>
+<option>Fin de Turno</option>
+<option>Calibracion</option>
+<option>Mantenimiento</option>
+</select>
 <label>Actividad:</label>
-<textarea id="obs" rows="3">SE REALIZA PRUEBA CON REGLETA Y PASTA PARA DESCARTAR PRESENCIA DE AGUA - ESTACION ES0477</textarea>
+<textarea id="actividad" rows="4">SE REALIZA PRUEBA CON REGLETA Y PASTA PARA DESCARTAR PRESENCIA DE AGUA  - ESTACION ES0477</textarea>
 <button class="btn-green" onclick="generar()">🚀 GENERAR Y SUBIR CON QR</button>
-<div id="status" class="log">Esperando...</div>
-<div id="qrcode"></div>
-<div id="link"></div>
+<div id="log" class="log">Esperando...</div>
+<div id="qr"></div>
 </div>
+
 <script>
-const REPO_OWNER="robertohernandez-design",REPO_NAME="siba",FILE_PATH="folios.json";
-let shaActual=null;
-function log(m,e=false){document.getElementById('status').innerHTML=`<span class="${e?'err':'ok'}">${m}</span>\n`+document.getElementById('status').innerHTML}
-function guardarToken(){const t=document.getElementById('token').value.trim();localStorage.setItem('siba_token_v18',t);document.getElementById('tokenStatus').innerHTML='✅ Token '+t.length;log('✅ Token guardado')}
-(function(){const t=localStorage.getItem('siba_token_v18')||localStorage.getItem('siba_token_v17');if(t){document.getElementById('token').value=t;document.getElementById('tokenStatus').innerHTML='✅ Token guardado'}})();
-function toB64(s){let b=new TextEncoder().encode(s),bin='';b.forEach(x=>bin+=String.fromCharCode(x));return btoa(bin)}
-function fromB64(b64){let bin=atob(b64.replace(/\n/g,'')),u=Uint8Array.from(bin,c=>c.charCodeAt(0));return new TextDecoder().decode(u)}
-async function getFile(token){const r=await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`,{headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json'}});if(!r.ok)throw new Error('GET '+r.status);const j=await r.json();return{sha:j.sha,json:JSON.parse(fromB64(j.content))}}
-function extraerNumero(f){if(!f)return 0;if(/^\d+$/.test(f.trim()))return parseInt(f.trim());let m=f.match(/-(\d{3,})-/);if(m)return parseInt(m[1]);return 0}
-async function cargarInfo(){try{const r=await fetch(`https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/${FILE_PATH}?t=${Date.now()}`);const arr=await r.json();document.getElementById('count').textContent=arr.length;let max=0;arr.forEach(f=>{let n=extraerNumero(f.folio);if(n>max)max=n});document.getElementById('nextFolio').textContent=String(max+1).padStart(3,'0')}catch{}}
-cargarInfo();
-async function generar(){
-  const token=document.getElementById('token').value.trim()||localStorage.getItem('siba_token_v18')||localStorage.getItem('siba_token_v17');
-  if(!token){alert('Token');return;}
-  const tipo=document.getElementById('tipo').value,obs=document.getElementById('obs').value;
-  try{
-    log('⏳ Leyendo...');const file=await getFile(token);let arr=file.json,sha=file.sha;let max=0;arr.forEach(f=>{let n=extraerNumero(f.folio);if(n>max)max=n});const nextNum=max+1,nextStr=String(nextNum).padStart(3,'0');const fecha=new Date().toISOString().slice(0,10),rand=Math.random().toString(16).slice(2,10)+Math.random().toString(16).slice(2,10);const folioId=`ES0477-${fecha}-${nextStr}-${rand.slice(0,16)}`;
-    log(`⏳ Generando ${folioId}...`);
-    arr.push({folio:folioId,fecha:fecha,tipo:tipo,actividad:obs,observaciones:obs,timestamp:new Date().toISOString(),estacion:"ES0477",fotos:0,hash:rand.slice(0,16)});
-    const b64=toB64(JSON.stringify(arr,null,2));
-    log('⏳ Subiendo...');
-    const put=await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`,{method:'PUT',headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json','Content-Type':'application/json'},body:JSON.stringify({message:`Add ${folioId} V18`,content:b64,sha:sha})});
-    if(!put.ok)throw new Error('PUT '+put.status+' '+(await put.text()).slice(0,300));
-    log(`✅ SUBIDO ${folioId} - Total ${arr.length}`);
-    const valUrl=`https://robertohernandez-design.github.io/siba/validador.html?v=${folioId}`;
-    document.getElementById('qrcode').innerHTML=''; new QRCode(document.getElementById('qrcode'),{text:valUrl,width:220,height:220});
-    document.getElementById('link').innerHTML=`<div class=log><a href="${valUrl}" target="_blank" style="color:#4ade80">${valUrl}</a></div>`;
-    setTimeout(()=>{
-      const canvas=document.querySelector('#qrcode canvas'); const imgData=canvas.toDataURL('image/png');
-      const {jsPDF}=window.jspdf; const doc=new jsPDF();
-      doc.setFontSize(14); doc.text(`SIBA - ${folioId}`,10,20);
-      doc.setFontSize(11); doc.text(`Tipo: ${tipo}`,10,30);
-      doc.text(`Actividad:`,10,40); doc.setFontSize(10); doc.text(doc.splitTextToSize(obs, 180),10,48);
-      doc.addImage(imgData,'PNG',60,80,90,90);
-      doc.setFontSize(8); doc.text(valUrl,10,180);
-      doc.save(folioId+'.pdf');
-      log('✅ PDF CON QR DESCARGADO');
-    },500);
-    cargarInfo();
-  }catch(e){log('❌ '+e.message,true)}
+const REPO = "robertohernandez-design/siba";
+const FILE = "folios.json";
+let folios = [];
+let siguienteNum = 1;
+
+function guardarToken(){
+ localStorage.setItem("gh_token", document.getElementById("token").value.trim());
+ log("Token guardado");
+ cargarFolios();
 }
+
+function log(t){ document.getElementById("log").innerText = t; }
+
+async function cargarFolios(){
+ try{
+  const r = await fetch(`https://raw.githubusercontent.com/${REPO}/main/${FILE}?t=${Date.now()}`);
+  folios = await r.json();
+  if(!Array.isArray(folios)) folios = [];
+  // CALCULO CORRECTO DEL SIGUIENTE - usa folio_interno
+  let max = 0;
+  folios.forEach(f=>{
+    let n = parseInt(f.folio_interno || "0");
+    if(!n){
+      // fallback: extrae el 053 de ES0477-2026-05-14-053-hash
+      const m = (f.folio||"").match(/-(\d{3})-/);
+      if(m) n = parseInt(m[1]);
+    }
+    if(n>max) max=n;
+  });
+  siguienteNum = max+1;
+  document.getElementById("info").innerText = `Folios: ${folios.length} | Siguiente: ${String(siguienteNum).padStart(3,'0')}`;
+  log(`Cargados ${folios.length} folios. Siguiente: ${String(siguienteNum).padStart(3,'0')}`);
+ }catch(e){
+  log("Error cargando folios: "+e.message);
+ }
+}
+
+function genHash(){
+ let r=""; const c="abcdef0123456789";
+ for(let i=0;i<24;i++) r+=c[Math.floor(Math.random()*16)];
+ return r;
+}
+
+async function generar(){
+ const token = localStorage.getItem("gh_token") || document.getElementById("token").value.trim();
+ if(!token) return log("Pon tu token ghp_");
+ const tipo = document.getElementById("tipo").value;
+ const actividad = document.getElementById("actividad").value.trim();
+ if(!actividad) return log("Pon actividad");
+
+ const numStr = String(siguienteNum).padStart(3,'0');
+ const fechaISO = new Date().toISOString().split('T')[0];
+ const hash = genHash();
+ const folioBase = `ES0477-${fechaISO}-${numStr}`;
+ const folioCompleto = `${folioBase}-${hash}`;
+ const fechaLocal = new Date().toLocaleString('es-MX');
+
+ const nuevo = {
+   folio: folioBase,
+   hash: hash,
+   folio_completo: folioCompleto,
+   fecha: fechaLocal,
+   timestamp: new Date().toISOString(),
+   estacion: "ES0477",
+   folio_interno: numStr,
+   tipo: tipo,
+   actividad: actividad,
+   observaciones: actividad
+ };
+
+ log(`Generando ${numStr}...`);
+ folios.push(nuevo);
+
+ // subir a github
+ try{
+  const apiUrl = `https://api.github.com/repos/${REPO}/contents/${FILE}`;
+  const get = await fetch(apiUrl, {headers:{Authorization:`token ${token}`}});
+  const data = await get.json();
+  const sha = data.sha;
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(folios, null, 2))));
+  const put = await fetch(apiUrl, {
+    method:"PUT",
+    headers:{Authorization:`token ${token}`, "Content-Type":"application/json"},
+    body: JSON.stringify({message:`Agrega folio ${numStr}`, content: content, sha: sha})
+  });
+  if(!put.ok) throw new Error(await put.text());
+  log(`✅ Folio ${folioCompleto} SUBIDO`);
+  document.getElementById("qr").innerHTML = `<br><a style="color:#22c55e" target="_blank" href="https://robertohernandez-design.github.io/siba/validador.html?v=${folioCompleto}">🔗 Abrir validador de ${numStr}</a>`;
+  cargarFolios();
+ }catch(e){
+  log("Error subiendo: "+e.message);
+  folios.pop();
+ }
+}
+
+(function(){
+ const t = localStorage.getItem("gh_token");
+ if(t) document.getElementById("token").value = t;
+ cargarFolios();
+})();
 </script>
 </body>
 </html>
