@@ -19,5 +19,16 @@
     "estacion": "ES0477",
     "fotos": 0,
     "hash": "839343999da88cfc"
+  },
+  {
+    "folio": "ES0477-2026-09-20-2027-63c48e22308849db",
+    "fecha": "2026-09-20",
+    "tipo": "Inicio de Turno",
+    "actividad": "SE REALIZA PRUEBA CON REGLETA Y PASTA PARA DESCARTAR PRESENCIA DE AGUA - ESTACION ES0477",
+    "observaciones": "SE REALIZA PRUEBA CON REGLETA Y PASTA PARA DESCARTAR PRESENCIA DE AGUA - ESTACION ES0477",
+    "timestamp": "2026-09-20T00:16:54.576Z",
+    "estacion": "ES0477",
+    "fotos": 0,
+    "hash": "63c48e22308849db"
   }
 ]
