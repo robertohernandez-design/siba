@@ -3,140 +3,137 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SIBA ES0477 - Generador V21</title>
+<title>SIBA V23 - ES0477</title>
 <style>
-body{background:#0f172a;color:#e2e8f0;font-family:system-ui;padding:15px}
-.card{background:#1e293b;border-radius:12px;padding:15px;margin-bottom:15px}
-input,select,textarea{width:100%;background:#0f172a;color:#fff;border:1px solid #334155;border-radius:8px;padding:10px;margin:5px 0}
-button{width:100%;padding:12px;border:none;border-radius:8px;font-weight:bold;cursor:pointer;margin-top:10px}
-.btn-yellow{background:#facc15;color:#000}
-.btn-green{background:#22c55e;color:#000}
-.log{background:#000;color:#22c55e;padding:10px;border-radius:8px;font-size:12px;margin-top:10px;min-height:20px}
+body{background:#f8fafc;font-family:system-ui,Arial;padding:10px;color:#000}
+h1{text-align:center;margin:5px 0 0;font-size:18px}
+h2{text-align:center;margin:0 0 10px 0;font-size:15px;color:#15803d}
+label{font-size:12px;font-weight:bold}
+input,textarea{width:100%;border:1.5px solid #000;border-radius:6px;padding:10px;box-sizing:border-box;font-size:13px}
+textarea{height:140px}
+.btn-foto{width:100%;background:#2563eb;color:#fff;border:none;border-radius:10px;padding:12px;font-weight:bold;margin:10px 0}
+.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.foto{border:1.5px dashed #cbd5e1;border-radius:8px;height:70px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#94a3b8;background:#fff;position:relative;overflow:hidden}
+.foto img{width:100%;height:100%;object-fit:cover}
+.btn-gen{width:100%;background:#15803d;color:#fff;border:none;border-radius:10px;padding:14px;font-weight:bold;font-size:16px;margin-top:10px}
+.footer{border:1.5px solid #000;border-radius:8px;padding:6px;text-align:center;font-size:12px;margin-top:10px}
+.token-box{background:#fff;border:1.5px solid #000;border-radius:8px;padding:8px;margin-bottom:10px}
+.log{background:#000;color:#0f0;padding:8px;border-radius:6px;font-size:11px;margin-top:8px}
 </style>
 </head>
 <body>
-<div class="card">
-<input id="token" type="password" placeholder="ghp_...">
-<button class="btn-yellow" onclick="guardarToken()">💾 Guardar Token</button>
-<div id="info" style="background:#0f172a;padding:8px;border-radius:6px;margin-top:10px;font-size:13px">Folios: - | Siguiente: -</div>
+<h1>SIBA V10</h1>
+<h2 id="titulo">FOLIO 053 OFICIAL</h2>
+
+<div class="token-box">
+<input id="token" type="password" placeholder="Token ghp_...">
+<button onclick="guardarToken()" style="width:100%;margin-top:5px;background:#facc15;border:none;padding:8px;border-radius:6px;font-weight:bold">💾 Guardar Token</button>
+<div id="log" class="log">Cargando folios...</div>
 </div>
 
-<div class="card">
-<label>Tipo:</label>
-<select id="tipo">
-<option>Inicio de Turno</option>
-<option>Prueba con regleta</option>
-<option>Fin de Turno</option>
-<option>Calibracion</option>
-<option>Mantenimiento</option>
-</select>
-<label>Actividad:</label>
-<textarea id="actividad" rows="4">SE REALIZA PRUEBA CON REGLETA Y PASTA PARA DESCARTAR PRESENCIA DE AGUA  - ESTACION ES0477</textarea>
-<button class="btn-green" onclick="generar()">🚀 GENERAR Y SUBIR CON QR</button>
-<div id="log" class="log">Esperando...</div>
-<div id="qr"></div>
-</div>
+<label>FOLIO:</label>
+<input id="folioInput" value="054">
+
+<label>ACTIVIDAD:</label>
+<textarea id="actividad">SE VERIFICA TIRA DE VEDER ROOT PARA VERIFICAR NIVEL DE AGUA
+REVISION FISICA DE REGISTROS Y CONTENEDORES
+REVISION DE ELEMENTOS DE MOTOBOMBAS (DETECTOR MECANICO DE FUGAS, TUBING, TIERRA FISICA, SELLOS EYS, COPLES)
+REVISION DE MANGUERA Y CODO DE DESCARGA
+SE REVISO FUNCIONAMIENTO Y ESTADO DE VALVULAS DE VENTEO
+SE REALIZO PRUEBA DE SENSORES EN AREA DE TANQUES Y DISPENSARIOS
+REVISION FISICA DE CONTENEDORES (HERMETICOS Y SIN FISURAS)</textarea>
+
+<button class="btn-foto" onclick="document.getElementById('file').click()">📷 AGREGAR FOTOS (MAX 6)</button>
+<input type="file" id="file" accept="image/*" multiple hidden>
+<div class="grid" id="grid"></div>
+<div id="contador" style="font-size:12px">0/6</div>
+
+<button class="btn-gen" onclick="generar()">🔒 GENERAR</button>
+
+<div class="footer" id="info">Folios: - | Siguiente: -</div>
+<div id="qr" style="text-align:center;margin-top:10px"></div>
 
 <script>
-const REPO = "robertohernandez-design/siba";
-const FILE = "folios.json";
-let folios = [];
-let siguienteNum = 1;
+const REPO="robertohernandez-design/siba";
+const FILE="folios.json";
+let folios=[], fotos=[], siguienteNum=54;
 
-function guardarToken(){
- localStorage.setItem("gh_token", document.getElementById("token").value.trim());
- log("Token guardado");
- cargarFolios();
-}
-
-function log(t){ document.getElementById("log").innerText = t; }
+function guardarToken(){localStorage.setItem("gh_token",document.getElementById("token").value.trim()); log("Token guardado"); cargarFolios();}
+function log(t){document.getElementById("log").innerText=t;}
 
 async function cargarFolios(){
  try{
-  const r = await fetch(`https://raw.githubusercontent.com/${REPO}/main/${FILE}?t=${Date.now()}`);
-  folios = await r.json();
-  if(!Array.isArray(folios)) folios = [];
-  // CALCULO CORRECTO DEL SIGUIENTE - usa folio_interno
-  let max = 0;
+  const r=await fetch(`https://raw.githubusercontent.com/${REPO}/main/${FILE}?t=${Date.now()}`);
+  folios=await r.json();
+  let max=0;
   folios.forEach(f=>{
-    let n = parseInt(f.folio_interno || "0");
-    if(!n){
-      // fallback: extrae el 053 de ES0477-2026-05-14-053-hash
-      const m = (f.folio||"").match(/-(\d{3})-/);
-      if(m) n = parseInt(m[1]);
-    }
+    let n=parseInt(f.folio_interno||"0");
+    if(!n){const m=(f.folio||"").match(/-(\d{3})-/); if(m) n=parseInt(m[1]);}
     if(n>max) max=n;
   });
-  siguienteNum = max+1;
-  document.getElementById("info").innerText = `Folios: ${folios.length} | Siguiente: ${String(siguienteNum).padStart(3,'0')}`;
-  log(`Cargados ${folios.length} folios. Siguiente: ${String(siguienteNum).padStart(3,'0')}`);
- }catch(e){
-  log("Error cargando folios: "+e.message);
- }
+  siguienteNum=max+1;
+  const sigStr=String(siguienteNum).padStart(3,'0');
+  document.getElementById("folioInput").value=sigStr;
+  document.getElementById("titulo").innerText=`FOLIO ${String(max).padStart(3,'0')} OFICIAL`;
+  document.getElementById("info").innerText=`Folios: ${folios.length} | Siguiente: ${sigStr} | Con respaldo: ${fotos.length}`;
+  log(`OK. Folios: ${folios.length} Siguiente: ${sigStr}`);
+ }catch(e){log("Error: "+e.message);}
 }
 
-function genHash(){
- let r=""; const c="abcdef0123456789";
- for(let i=0;i<24;i++) r+=c[Math.floor(Math.random()*16)];
- return r;
+function renderFotos(){
+ const grid=document.getElementById("grid");
+ grid.innerHTML="";
+ for(let i=0;i<6;i++){
+  const div=document.createElement("div"); div.className="foto";
+  if(fotos[i]) div.innerHTML=`<img src="${fotos[i]}">`;
+  else div.innerText=`Foto ${i+1}`;
+  grid.appendChild(div);
+ }
+ document.getElementById("contador").innerText=`${fotos.length}/6`;
+ const sig=String(siguienteNum).padStart(3,'0');
+ document.getElementById("info").innerText=`Folios: ${folios.length} | Siguiente: ${sig} | Con respaldo: ${fotos.length}`;
 }
+
+document.getElementById("file").addEventListener("change",e=>{
+ const files=[...e.target.files].slice(0,6-fotos.length);
+ files.forEach(file=>{
+  const reader=new FileReader();
+  reader.onload=ev=>{fotos.push(ev.target.result); renderFotos();}
+  reader.readAsDataURL(file);
+ });
+});
+
+function genHash(){let r="";const c="abcdef0123456789";for(let i=0;i<24;i++) r+=c[Math.floor(Math.random()*16)];return r;}
 
 async function generar(){
- const token = localStorage.getItem("gh_token") || document.getElementById("token").value.trim();
- if(!token) return log("Pon tu token ghp_");
- const tipo = document.getElementById("tipo").value;
- const actividad = document.getElementById("actividad").value.trim();
- if(!actividad) return log("Pon actividad");
-
- const numStr = String(siguienteNum).padStart(3,'0');
- const fechaISO = new Date().toISOString().split('T')[0];
- const hash = genHash();
- const folioBase = `ES0477-${fechaISO}-${numStr}`;
- const folioCompleto = `${folioBase}-${hash}`;
- const fechaLocal = new Date().toLocaleString('es-MX');
-
- const nuevo = {
-   folio: folioBase,
-   hash: hash,
-   folio_completo: folioCompleto,
-   fecha: fechaLocal,
-   timestamp: new Date().toISOString(),
-   estacion: "ES0477",
-   folio_interno: numStr,
-   tipo: tipo,
-   actividad: actividad,
-   observaciones: actividad
- };
-
- log(`Generando ${numStr}...`);
+ const token=localStorage.getItem("gh_token")||document.getElementById("token").value.trim();
+ if(!token) return log("Falta token ghp_");
+ const folioInterno=document.getElementById("folioInput").value.padStart(3,'0');
+ const actividad=document.getElementById("actividad").value.trim();
+ const fechaISO=new Date().toISOString().split('T')[0];
+ const hash=genHash();
+ const folioBase=`ES0477-${fechaISO}-${folioInterno}`;
+ const folioCompleto=`${folioBase}-${hash}`;
+ const nuevo={folio:folioBase, hash:hash, folio_completo:folioCompleto, fecha:new Date().toLocaleString('es-MX'), timestamp:new Date().toISOString(), estacion:"ES0477", folio_interno:folioInterno, tipo:"Inicio de Turno", actividad:actividad, observaciones:actividad, fotos:fotos.length};
  folios.push(nuevo);
-
- // subir a github
+ log(`Subiendo ${folioInterno}...`);
  try{
-  const apiUrl = `https://api.github.com/repos/${REPO}/contents/${FILE}`;
-  const get = await fetch(apiUrl, {headers:{Authorization:`token ${token}`}});
-  const data = await get.json();
-  const sha = data.sha;
-  const content = btoa(unescape(encodeURIComponent(JSON.stringify(folios, null, 2))));
-  const put = await fetch(apiUrl, {
-    method:"PUT",
-    headers:{Authorization:`token ${token}`, "Content-Type":"application/json"},
-    body: JSON.stringify({message:`Agrega folio ${numStr}`, content: content, sha: sha})
-  });
+  const api=`https://api.github.com/repos/${REPO}/contents/${FILE}`;
+  const get=await fetch(api,{headers:{Authorization:`token ${token}`}});
+  const d=await get.json(); const sha=d.sha;
+  const content=btoa(unescape(encodeURIComponent(JSON.stringify(folios,null,2))));
+  const put=await fetch(api,{method:"PUT", headers:{Authorization:`token ${token}`,"Content-Type":"application/json"}, body:JSON.stringify({message:`Agrega folio ${folioInterno}`, content, sha})});
   if(!put.ok) throw new Error(await put.text());
-  log(`✅ Folio ${folioCompleto} SUBIDO`);
-  document.getElementById("qr").innerHTML = `<br><a style="color:#22c55e" target="_blank" href="https://robertohernandez-design.github.io/siba/validador.html?v=${folioCompleto}">🔗 Abrir validador de ${numStr}</a>`;
-  cargarFolios();
- }catch(e){
-  log("Error subiendo: "+e.message);
-  folios.pop();
- }
+  log(`✅ ${folioCompleto} SUBIDO`);
+  document.getElementById("qr").innerHTML=`<a target="_blank" href="https://robertohernandez-design.github.io/siba/validador.html?v=${folioCompleto}">🔗 Ver validador ${folioInterno}</a>`;
+  siguienteNum=parseInt(folioInterno)+1; renderFotos(); cargarFolios();
+ }catch(e){log("Error: "+e.message); folios.pop();}
 }
 
 (function(){
- const t = localStorage.getItem("gh_token");
- if(t) document.getElementById("token").value = t;
- cargarFolios();
+ const t=localStorage.getItem("gh_token"); if(t) document.getElementById("token").value=t;
+ renderFotos(); cargarFolios();
+ for(let i=0;i<6;i++){const d=document.createElement("div"); d.className="foto"; d.innerText=`Foto ${i+1}`; document.getElementById("grid").appendChild(d);}
 })();
 </script>
 </body>
