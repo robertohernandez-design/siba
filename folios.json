@@ -3,8 +3,10 @@
     "folio": "053",
     "fecha": "14/9/2026, 6:01:55 p.m.",
     "hash": "75ced0ff38049ce71a0a25ec8b7",
-    "actividad": "SE REALIZÃÂ PRUEBA CON REGLETA Y PASTA PARA DESCARTAR PRE",
+    "actividad": "SE REALIZA PRUEBA CON REGLETA Y PASTA PARA DESCARTAR PRESENCIA DE AGUA EN TANQUE, SE DESCARTA AGUA, SE TOMA LECTURA INICIAL",
     "fotos": 3,
-    "estacion": "ES0477"
+    "estacion": "ES0477",
+    "tipo": "Prueba con regleta",
+    "observaciones": "REPARADO V17"
   }
 ]
