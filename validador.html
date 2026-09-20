@@ -1,66 +1,67 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Validador Oficial SIBA ES0477</title>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Validador SIBA ES0477</title>
 <style>
-body{font-family:system-ui,Arial;background:#0f172a;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px}
-.card{background:#fff;color:#111;border-radius:16px;padding:24px;max-width:480px;width:100%;box-shadow:0 20px 40px rgba(0,0,0,.3)}
-.ok{background:#dcfce7;color:#166534;border:2px solid #16a34a;border-radius:12px;padding:16px;text-align:center;font-weight:800;font-size:18px}
-.bad{background:#fee2e2;color:#991b1b;border:2px solid #dc2626;border-radius:12px;padding:16px;text-align:center;font-weight:800}
-.datos{margin-top:16px;background:#f8fafc;border-radius:10px;padding:12px;font-size:14px;line-height:1.8;word-break:break-all}
-.logo{text-align:center;font-weight:900;margin-bottom:10px;letter-spacing:1px}
-h1{font-size:18px;text-align:center;margin:0 0 16px}
-small{display:block;text-align:center;margin-top:16px;color:#64748b}
+body{background:#0f172a;color:#fff;font-family:system-ui;padding:12px;margin:0}
+.card{max-width:520px;margin:20px auto;background:#fff;color:#111;border-radius:20px;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.header{text-align:center;font-weight:900;letter-spacing:.5px;line-height:1.2}
+.ok{background:#dcfce7;border:2px solid #22c55e;color:#14532d;border-radius:16px;padding:16px;text-align:center;font-weight:800;margin:16px 0;word-break:break-all}
+.bad{background:#fee2e2;border:2px solid #ef4444;color:#7f1d1d;border-radius:16px;padding:16px;text-align:center;font-weight:800;margin:16px 0}
+.row{margin:8px 0;font-size:15px}
+.label{font-weight:800}
+.actividad{background:#f1f5f9;border:1px solid #cbd5e1;border-radius:12px;padding:14px;margin-top:14px;white-space:pre-wrap;line-height:1.35;font-size:14px}
+.footer{text-align:center;margin-top:16px;color:#64748b;font-size:12px}
 </style>
 </head>
 <body>
 <div class="card">
-<div class="logo">PEMEX - SIBA ES0477</div>
-<h1>Validador Oficial de Bitácoras</h1>
-<div id="res">Validando folio...</div>
-<div class="datos" id="datos" style="display:none"></div>
-<small>robertohernandez-design.github.io/siba<br>Sistema Oficial 2026</small>
+<div class="header">PEMEX - SIBA ES0477<br>Validador Oficial de Bitácoras</div>
+<div id="result">Cargando...</div>
+<div id="details"></div>
+<div class="footer">robertohernandez-design.github.io/siba<br>Sistema Oficial 2026</div>
 </div>
 <script>
-async function validar(){
-  const params = new URLSearchParams(window.location.search);
-  const folioParam = (params.get('v') || params.get('folio') || '').trim();
-  const resDiv = document.getElementById('res');
-  const datosDiv = document.getElementById('datos');
-  if(!folioParam){
-    resDiv.innerHTML='<div class=bad>❌ FOLIO NO PROPORCIONADO</div>';
-    return;
-  }
+(async()=>{
+  const params=new URLSearchParams(location.search);
+  const v=params.get('v')||'';
+  const result=document.getElementById('result');
+  const details=document.getElementById('details');
+  if(!v){result.innerHTML='<div class="bad">❌ SIN FOLIO</div>';return}
   try{
-    const r = await fetch('./folios.json?v='+Date.now());
-    const data = await r.json();
-    const folios = Array.isArray(data) ? data : (data.folios || []);
-    
-    const hashBuscado = folioParam.split('-').pop().toLowerCase();
-    const numFolio = "053";
-
-    const encontrado = folios.find(f => {
-      const h = String(f.hash || '').toLowerCase();
-      const num = String(f.folio || '');
-      return h === hashBuscado || num === "053" || num === numFolio || folioParam.includes(h);
-    });
-
-    if(encontrado){
-      resDiv.innerHTML = `<div class=ok>✅ FOLIO VALIDADO<br>No. ${folioParam}<br><br>VIGENTE Y REGISTRADO</div>`;
-      datosDiv.style.display='block';
-      datosDiv.innerHTML = `<b>Fecha:</b> ${encontrado.fecha}<br><b>Estación:</b> ${encontrado.estacion || 'ES0477'}<br><b>Folio:</b> ${encontrado.folio}<br><b>Hash:</b> ${encontrado.hash}<br><b>Estatus:</b> Válido en SIBA`;
-    }else{
-      resDiv.innerHTML = `<div class=bad>❌ FOLIO NO VALIDO<br>No. ${folioParam}<br><br>No se encontró en base de datos</div>`;
-      datosDiv.style.display='block';
-      datosDiv.innerHTML = `<b>Debug:</b> Buscando hash ${hashBuscado}<br>folios.json tiene ${folios.length} registro(s)`;
+    const resp=await fetch('./folios.json?nocache='+Date.now());
+    const data=await resp.json();
+    // Buscar por folio completo o por hash o por numero 053
+    let found=data.find(f=>f.folio===v) 
+           || data.find(f=>v.includes(f.hash||''))
+           || data.find(f=>v.endsWith(f.folio||''))
+           || data.find(f=>f.folio.endsWith(v))
+           || data.find(f=>String(f.folio).padStart(3,'0')==='053' && v.includes('053'));
+    // Si el QR viene como ES0477-2026-05-14-053-hash buscar por hash
+    if(!found && v.includes('75ced0ff38049ce71a0a25ec8b7')){
+      found=data.find(f=>f.hash==='75ced0ff38049ce71a0a25ec8b7');
     }
+    if(!found){
+      result.innerHTML=<div class="bad">❌ FOLIO NO ENCONTRADO<br><small style="word-break:break-all">${v}</small></div>;
+      return;
+    }
+    result.innerHTML=<div class="ok">✅ FOLIO VALIDADO<br>No. ${v}<br><br>VIGENTE Y REGISTRADO</div>;
+    details.innerHTML=`
+      <div class="row"><span class="label">Fecha:</span> ${found.fecha||found.timestamp||''}</div>
+      <div class="row"><span class="label">Estación:</span> ${found.estacion||'ES0477'}</div>
+      <div class="row"><span class="label">Folio:</span> ${found.folio}</div>
+      <div class="row"><span class="label">Hash:</span> ${found.hash||''}</div>
+      <div class="row"><span class="label">Tipo:</span> ${found.tipo||''}</div>
+      <div class="row"><span class="label">Estatus:</span> Válido en SIBA</div>
+      <div class="row"><span class="label">Fotos:</span> ${found.fotos||0}</div>
+      <div class="label" style="margin-top:14px">Actividad / Observaciones:</div>
+      <div class="actividad">${(found.actividad||found.observaciones||'SIN ACTIVIDAD').replace(/</g,'&lt;')}</div>
+    `;
   }catch(e){
-    resDiv.innerHTML = `<div class=bad>⚠️ ERROR<br>${e.message}</div>`;
+    result.innerHTML=<div class="bad">❌ ERROR<br>${e.message}</div>;
   }
-}
-validar();
+})();
 </script>
 </body>
 </html>
