@@ -8,5 +8,16 @@
     "estacion": "ES0477",
     "tipo": "Prueba con regleta",
     "observaciones": "REPARADO V17"
+  },
+  {
+    "folio": "ES0477-2026-09-20-054-839343999da88cfc",
+    "fecha": "2026-09-20",
+    "tipo": "Inicio de Turno",
+    "actividad": "SE REALIZA PRUEBA CON REGLETA Y PASTA PARA DESCARTAR PRESENCIA DE AGUA - ESTACION ES0477",
+    "observaciones": "SE REALIZA PRUEBA CON REGLETA Y PASTA PARA DESCARTAR PRESENCIA DE AGUA - ESTACION ES0477",
+    "timestamp": "2026-09-20T00:12:15.678Z",
+    "estacion": "ES0477",
+    "fotos": 0,
+    "hash": "839343999da88cfc"
   }
 ]
