@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SIBA AUTO V17 - FIX LEGACY 053</title>
+<title>SIBA V18 QR PDF</title>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
-body{font-family:system-ui,sans-serif;background:#0f172a;color:#fff;padding:15px;max-width:520px;margin:0 auto}
+body{font-family:system-ui;background:#0f172a;color:#fff;padding:15px;max-width:520px;margin:0 auto}
 .card{background:#1e293b;border-radius:16px;padding:18px;margin-bottom:15px;border:1px solid #334155}
 label{font-size:13px;color:#94a3b8;display:block;margin:8px 0 4px}
 input,select,textarea{width:100%;padding:12px;border-radius:10px;border:1px solid #475569;background:#0f172a;color:#fff;font-size:15px;box-sizing:border-box}
@@ -21,176 +21,67 @@ button{width:100%;padding:14px;border-radius:12px;border:0;font-weight:800;font-
 </style>
 </head>
 <body>
-<h2>🚀 SIBA V17 - FIX LEGACY</h2>
-
+<h2>🚀 SIBA V18 - CON QR EN PDF</h2>
 <div class="card">
-<label>GitHub Token:</label>
+<label>Token:</label>
 <input id="token" type="password" placeholder="ghp_...">
 <button class="btn-yellow" onclick="guardarToken()">💾 Guardar Token</button>
-<div id="tokenStatus" class="log">Token no guardado</div>
-<button class="btn-red" onclick="reparar053()">🛠️ 1. REPARAR 053 DAÑADO (click primero)</button>
+<div id="tokenStatus" class="log"></div>
+<div style="margin-top:10px;background:#0f172a;padding:10px;border-radius:8px;font-size:13px">
+Folios: <span id="count">-</span> | Siguiente: <b id="nextFolio">-</b>
 </div>
-
+</div>
 <div class="card">
 <label>Tipo:</label>
-<select id="tipo">
-<option value="Inicio de Turno">Inicio de Turno</option>
-<option value="Fin de Turno">Fin de Turno</option>
-<option value="Prueba con regleta">Prueba con regleta</option>
-<option value="Prueba">Prueba</option>
-</select>
-<label>Actividad completa (sin límite):</label>
+<select id="tipo"><option>Inicio de Turno</option><option>Fin de Turno</option><option>Prueba con regleta</option><option>Prueba</option></select>
+<label>Actividad:</label>
 <textarea id="obs" rows="3">SE REALIZA PRUEBA CON REGLETA Y PASTA PARA DESCARTAR PRESENCIA DE AGUA - ESTACION ES0477</textarea>
-<div style="margin-top:10px;background:#0f172a;padding:10px;border-radius:8px;font-size:13px">
-Folios en GitHub: <span id="count">-</span> | Siguiente: <b id="nextFolio">-</b>
-</div>
-<button class="btn-green" onclick="generar()">🚀 2. GENERAR 054 Y SUBIR</button>
+<button class="btn-green" onclick="generar()">🚀 GENERAR Y SUBIR CON QR</button>
 <div id="status" class="log">Esperando...</div>
 <div id="qrcode"></div>
 <div id="link"></div>
 </div>
-
 <script>
-const REPO_OWNER = "robertohernandez-design";
-const REPO_NAME = "siba";
-const FILE_PATH = "folios.json";
+const REPO_OWNER="robertohernandez-design",REPO_NAME="siba",FILE_PATH="folios.json";
 let shaActual=null;
-
-function log(m,err=false){const el=document.getElementById('status'); el.innerHTML=`<span class="${err?'err':'ok'}">${m}</span>\n`+el.innerHTML;}
-
-function guardarToken(){
-  const t=document.getElementById('token').value.trim();
-  if(!t.startsWith('ghp_')&&!t.startsWith('github_pat_')){alert('Token debe empezar con ghp_');return;}
-  localStorage.setItem('siba_token_v17',t);
-  document.getElementById('tokenStatus').innerHTML='✅ Token guardado '+t.length;
-  log('✅ Token guardado');
-}
-(function(){const t=localStorage.getItem('siba_token_v17'); if(t){document.getElementById('token').value=t; document.getElementById('tokenStatus').innerHTML='✅ Token guardado '+t.length;}})();
-
-function toBase64UTF8(str){
-  const bytes = new TextEncoder().encode(str);
-  let binary=''; bytes.forEach(b=>binary+=String.fromCharCode(b));
-  return btoa(binary);
-}
-function fromBase64UTF8(b64){
-  const binary=atob(b64.replace(/\n/g,''));
-  const bytes=Uint8Array.from(binary,c=>c.charCodeAt(0));
-  return new TextDecoder().decode(bytes);
-}
-
-async function getFile(token){
-  const res=await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`,{
-    headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json'}
-  });
-  if(!res.ok){throw new Error('GET SHA falló: '+res.status+' '+(await res.text()).slice(0,200));}
-  const j=await res.json();
-  const contentUTF8 = fromBase64UTF8(j.content);
-  return {sha:j.sha, content: contentUTF8, json: JSON.parse(contentUTF8)};
-}
-
-function extraerNumero(folioStr){
-  if(!folioStr) return 0;
-  if(/^\d+$/.test(folioStr.trim())) return parseInt(folioStr.trim());
-  const m = folioStr.match(/-(\d{3,})-/);
-  if(m) return parseInt(m[1]);
-  const m2 = folioStr.match(/-(\d+)-[a-f0-9]{6,}/);
-  if(m2) return parseInt(m2[1]);
-  return 0;
-}
-
-async function cargarInfo(){
-  try{
-    const r=await fetch(`https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/${FILE_PATH}?t=${Date.now()}`);
-    const arr=await r.json();
-    document.getElementById('count').textContent=arr.length;
-    let max=0; arr.forEach(f=>{const n=extraerNumero(f.folio); if(n>max) max=n;});
-    document.getElementById('nextFolio').textContent=String(max+1).padStart(3,'0');
-  }catch(e){document.getElementById('nextFolio').textContent='054';}
-}
+function log(m,e=false){document.getElementById('status').innerHTML=`<span class="${e?'err':'ok'}">${m}</span>\n`+document.getElementById('status').innerHTML}
+function guardarToken(){const t=document.getElementById('token').value.trim();localStorage.setItem('siba_token_v18',t);document.getElementById('tokenStatus').innerHTML='✅ Token '+t.length;log('✅ Token guardado')}
+(function(){const t=localStorage.getItem('siba_token_v18')||localStorage.getItem('siba_token_v17');if(t){document.getElementById('token').value=t;document.getElementById('tokenStatus').innerHTML='✅ Token guardado'}})();
+function toB64(s){let b=new TextEncoder().encode(s),bin='';b.forEach(x=>bin+=String.fromCharCode(x));return btoa(bin)}
+function fromB64(b64){let bin=atob(b64.replace(/\n/g,'')),u=Uint8Array.from(bin,c=>c.charCodeAt(0));return new TextDecoder().decode(u)}
+async function getFile(token){const r=await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`,{headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json'}});if(!r.ok)throw new Error('GET '+r.status);const j=await r.json();return{sha:j.sha,json:JSON.parse(fromB64(j.content))}}
+function extraerNumero(f){if(!f)return 0;if(/^\d+$/.test(f.trim()))return parseInt(f.trim());let m=f.match(/-(\d{3,})-/);if(m)return parseInt(m[1]);return 0}
+async function cargarInfo(){try{const r=await fetch(`https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/${FILE_PATH}?t=${Date.now()}`);const arr=await r.json();document.getElementById('count').textContent=arr.length;let max=0;arr.forEach(f=>{let n=extraerNumero(f.folio);if(n>max)max=n});document.getElementById('nextFolio').textContent=String(max+1).padStart(3,'0')}catch{}}
 cargarInfo();
-
-async function reparar053(){
-  const token=document.getElementById('token').value.trim()||localStorage.getItem('siba_token_v17');
-  if(!token){alert('Token');return;}
-  try{
-    log('⏳ Leyendo archivo para reparar...');
-    const file=await getFile(token);
-    shaActual=file.sha;
-    let arr=file.json;
-    if(!Array.isArray(arr)) arr=[];
-    let idx = arr.findIndex(f=> extraerNumero(f.folio)===53 || f.folio==="053");
-    if(idx===-1){log('No encontré 053, lo creo nuevo'); arr.push({}); idx=0;}
-    arr[idx]={
-      "folio": "053",
-      "fecha": "14/9/2026, 6:01:55 p.m.",
-      "hash": "75ced0ff38049ce71a0a25ec8b7",
-      "actividad": "SE REALIZA PRUEBA CON REGLETA Y PASTA PARA DESCARTAR PRESENCIA DE AGUA EN TANQUE, SE DESCARTA AGUA, SE TOMA LECTURA INICIAL",
-      "fotos": 3,
-      "estacion": "ES0477",
-      "tipo": "Prueba con regleta",
-      "observaciones": "REPARADO V17"
-    };
-    const newContent = JSON.stringify(arr,null,2);
-    const b64 = toBase64UTF8(newContent);
-    log('⏳ Subiendo 053 reparado...');
-    const put=await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`,{
-      method:'PUT',
-      headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json','Content-Type':'application/json'},
-      body:JSON.stringify({message:'Fix 053 corrupto V17',content:b64,sha:shaActual})
-    });
-    if(!put.ok) throw new Error('PUT fail '+put.status+' '+(await put.text()).slice(0,300));
-    log('✅ 053 REPARADO - Ya no tiene ÃÂ y ya está completo');
-    cargarInfo();
-  }catch(e){log('❌ Error reparando: '+e.message,true);}
-}
-
 async function generar(){
-  const token=document.getElementById('token').value.trim()||localStorage.getItem('siba_token_v17');
+  const token=document.getElementById('token').value.trim()||localStorage.getItem('siba_token_v18')||localStorage.getItem('siba_token_v17');
   if(!token){alert('Token');return;}
-  const tipo=document.getElementById('tipo').value;
-  const obs=document.getElementById('obs').value;
+  const tipo=document.getElementById('tipo').value,obs=document.getElementById('obs').value;
   try{
-    log('⏳ Leyendo folios.json...');
-    const file=await getFile(token);
-    shaActual=file.sha;
-    let arr=file.json;
-    if(!Array.isArray(arr)) arr=[];
-    let max=0; arr.forEach(f=>{const n=extraerNumero(f.folio); if(n>max) max=n;});
-    const nextNum = (max===0?54:max+1);
-    const nextStr=String(nextNum).padStart(3,'0');
-    const fecha=new Date().toISOString().slice(0,10);
-    const rand=Math.random().toString(16).slice(2,10)+Math.random().toString(16).slice(2,10);
-    const folioId=`ES0477-${fecha}-${nextStr}-${rand}`;
+    log('⏳ Leyendo...');const file=await getFile(token);let arr=file.json,sha=file.sha;let max=0;arr.forEach(f=>{let n=extraerNumero(f.folio);if(n>max)max=n});const nextNum=max+1,nextStr=String(nextNum).padStart(3,'0');const fecha=new Date().toISOString().slice(0,10),rand=Math.random().toString(16).slice(2,10)+Math.random().toString(16).slice(2,10);const folioId=`ES0477-${fecha}-${nextStr}-${rand.slice(0,16)}`;
     log(`⏳ Generando ${folioId}...`);
-    const nuevo={
-      folio: folioId,
-      fecha: fecha,
-      tipo: tipo,
-      actividad: obs,
-      observaciones: obs,
-      timestamp: new Date().toISOString(),
-      estacion: "ES0477",
-      fotos: 0,
-      hash: rand.slice(0,16)
-    };
-    arr.push(nuevo);
-    const newContent=JSON.stringify(arr,null,2);
-    const b64=toBase64UTF8(newContent);
-    log('⏳ Subiendo a GitHub...');
-    const put=await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`,{
-      method:'PUT',
-      headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json','Content-Type':'application/json'},
-      body:JSON.stringify({message:`Add folio ${folioId} V17`,content:b64,sha:shaActual})
-    });
-    if(!put.ok) throw new Error('PUT fail '+put.status+' '+(await put.text()).slice(0,400));
-    log(`✅ FOLIO ${folioId} SUBIDO - AHORA SI SON ${arr.length} FOLIOS`,false);
+    arr.push({folio:folioId,fecha:fecha,tipo:tipo,actividad:obs,observaciones:obs,timestamp:new Date().toISOString(),estacion:"ES0477",fotos:0,hash:rand.slice(0,16)});
+    const b64=toB64(JSON.stringify(arr,null,2));
+    log('⏳ Subiendo...');
+    const put=await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`,{method:'PUT',headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json','Content-Type':'application/json'},body:JSON.stringify({message:`Add ${folioId} V18`,content:b64,sha:sha})});
+    if(!put.ok)throw new Error('PUT '+put.status+' '+(await put.text()).slice(0,300));
+    log(`✅ SUBIDO ${folioId} - Total ${arr.length}`);
     const valUrl=`https://robertohernandez-design.github.io/siba/validador.html?v=${folioId}`;
-    document.getElementById('qrcode').innerHTML='';
-    new QRCode(document.getElementById('qrcode'),{text:valUrl,width:200,height:200});
+    document.getElementById('qrcode').innerHTML=''; new QRCode(document.getElementById('qrcode'),{text:valUrl,width:220,height:220});
     document.getElementById('link').innerHTML=`<div class=log><a href="${valUrl}" target="_blank" style="color:#4ade80">${valUrl}</a></div>`;
-    const {jsPDF}=window.jspdf; const doc=new jsPDF(); doc.text(`SIBA - ${folioId}`,10,20); doc.text(`Tipo: ${tipo}`,10,30); doc.text(`Actividad: ${obs}`,10,40, {maxWidth:180}); doc.text(valUrl,10,80); doc.save(folioId+'.pdf');
+    setTimeout(()=>{
+      const canvas=document.querySelector('#qrcode canvas'); const imgData=canvas.toDataURL('image/png');
+      const {jsPDF}=window.jspdf; const doc=new jsPDF();
+      doc.setFontSize(14); doc.text(`SIBA - ${folioId}`,10,20);
+      doc.setFontSize(11); doc.text(`Tipo: ${tipo}`,10,30);
+      doc.text(`Actividad:`,10,40); doc.setFontSize(10); doc.text(doc.splitTextToSize(obs, 180),10,48);
+      doc.addImage(imgData,'PNG',60,80,90,90);
+      doc.setFontSize(8); doc.text(valUrl,10,180);
+      doc.save(folioId+'.pdf');
+      log('✅ PDF CON QR DESCARGADO');
+    },500);
     cargarInfo();
-  }catch(e){log('❌ ERROR: '+e.message,true); console.error(e);}
+  }catch(e){log('❌ '+e.message,true)}
 }
 </script>
 </body>
