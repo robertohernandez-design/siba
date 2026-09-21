@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SIBA V23 - ES0477</title>
+<title>SIBA V24 - ES0477</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 body{background:#f8fafc;font-family:system-ui,Arial;padding:10px;color:#000}
 h1{text-align:center;margin:5px 0 0;font-size:18px}
@@ -16,24 +18,23 @@ textarea{height:140px}
 .foto{border:1.5px dashed #cbd5e1;border-radius:8px;height:70px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#94a3b8;background:#fff;position:relative;overflow:hidden}
 .foto img{width:100%;height:100%;object-fit:cover}
 .btn-gen{width:100%;background:#15803d;color:#fff;border:none;border-radius:10px;padding:14px;font-weight:bold;font-size:16px;margin-top:10px}
+.btn-carpeta{width:100%;background:#0f172a;color:#fff;border:none;border-radius:10px;padding:10px;font-weight:bold;margin-top:8px}
 .footer{border:1.5px solid #000;border-radius:8px;padding:6px;text-align:center;font-size:12px;margin-top:10px}
 .token-box{background:#fff;border:1.5px solid #000;border-radius:8px;padding:8px;margin-bottom:10px}
-.log{background:#000;color:#0f0;padding:8px;border-radius:6px;font-size:11px;margin-top:8px}
+.log{background:#000;color:#0f0;padding:8px;border-radius:6px;font-size:11px;margin-top:8px;white-space:pre-wrap}
 </style>
 </head>
 <body>
-<h1>SIBA V10</h1>
-<h2 id="titulo">FOLIO 053 OFICIAL</h2>
-
+<h1>SIBA V24</h1>
+<h2 id="titulo">FOLIO 054 OFICIAL</h2>
 <div class="token-box">
 <input id="token" type="password" placeholder="Token ghp_...">
 <button onclick="guardarToken()" style="width:100%;margin-top:5px;background:#facc15;border:none;padding:8px;border-radius:6px;font-weight:bold">💾 Guardar Token</button>
+<button class="btn-carpeta" onclick="seleccionarCarpeta()">📁 Seleccionar carpeta.../siba/documentos/</button>
 <div id="log" class="log">Cargando folios...</div>
 </div>
-
 <label>FOLIO:</label>
 <input id="folioInput" value="054">
-
 <label>ACTIVIDAD:</label>
 <textarea id="actividad">SE VERIFICA TIRA DE VEDER ROOT PARA VERIFICAR NIVEL DE AGUA
 REVISION FISICA DE REGISTROS Y CONTENEDORES
@@ -42,28 +43,30 @@ REVISION DE MANGUERA Y CODO DE DESCARGA
 SE REVISO FUNCIONAMIENTO Y ESTADO DE VALVULAS DE VENTEO
 SE REALIZO PRUEBA DE SENSORES EN AREA DE TANQUES Y DISPENSARIOS
 REVISION FISICA DE CONTENEDORES (HERMETICOS Y SIN FISURAS)</textarea>
-
 <button class="btn-foto" onclick="document.getElementById('file').click()">📷 AGREGAR FOTOS (MAX 6)</button>
 <input type="file" id="file" accept="image/*" multiple hidden>
 <div class="grid" id="grid"></div>
 <div id="contador" style="font-size:12px">0/6</div>
-
-<button class="btn-gen" onclick="generar()">🔒 GENERAR</button>
-
+<button class="btn-gen" onclick="generar()">🔒 GENERAR PDF + RESPALDO AUTO</button>
 <div class="footer" id="info">Folios: - | Siguiente: -</div>
 <div id="qr" style="text-align:center;margin-top:10px"></div>
-
+<div id="qrcode" style="display:flex;justify-content:center;margin-top:10px"></div>
 <script>
 const REPO="robertohernandez-design/siba";
 const FILE="folios.json";
 let folios=[], fotos=[], siguienteNum=54;
-
+let carpetaHandle = null;
 function guardarToken(){localStorage.setItem("gh_token",document.getElementById("token").value.trim()); log("Token guardado"); cargarFolios();}
 function log(t){document.getElementById("log").innerText=t;}
-
+async function seleccionarCarpeta(){
+ try{
+  carpetaHandle = await window.showDirectoryPicker();
+  log("📁 Carpeta seleccionada: "+carpetaHandle.name);
+ }catch(e){ log("No se selecciono carpeta: "+e.message); }
+}
 async function cargarFolios(){
  try{
-  const r=await fetch(`https://raw.githubusercontent.com/${REPO}/main/${FILE}?t=${Date.now()}`);
+  const r=await fetch("https://raw.githubusercontent.com/"+REPO+"/main/"+FILE+"?t="+Date.now());
   folios=await r.json();
   let max=0;
   folios.forEach(f=>{
@@ -74,26 +77,22 @@ async function cargarFolios(){
   siguienteNum=max+1;
   const sigStr=String(siguienteNum).padStart(3,'0');
   document.getElementById("folioInput").value=sigStr;
-  document.getElementById("titulo").innerText=`FOLIO ${String(max).padStart(3,'0')} OFICIAL`;
-  document.getElementById("info").innerText=`Folios: ${folios.length} | Siguiente: ${sigStr} | Con respaldo: ${fotos.length}`;
-  log(`OK. Folios: ${folios.length} Siguiente: ${sigStr}`);
- }catch(e){log("Error: "+e.message);}
+  document.getElementById("titulo").innerText="FOLIO "+sigStr+" OFICIAL";
+  document.getElementById("info").innerText="Folios: "+folios.length+" | Siguiente: "+sigStr+" | Fotos: "+fotos.length;
+  log("OK. Folios: "+folios.length+" Siguiente: "+sigStr);
+ }catch(e){log("Error folios: "+e.message);}
 }
-
 function renderFotos(){
  const grid=document.getElementById("grid");
  grid.innerHTML="";
  for(let i=0;i<6;i++){
   const div=document.createElement("div"); div.className="foto";
-  if(fotos[i]) div.innerHTML=`<img src="${fotos[i]}">`;
-  else div.innerText=`Foto ${i+1}`;
+  if(fotos[i]) div.innerHTML="<img src='"+fotos[i]+"'>";
+  else div.innerText="Foto "+(i+1);
   grid.appendChild(div);
  }
- document.getElementById("contador").innerText=`${fotos.length}/6`;
- const sig=String(siguienteNum).padStart(3,'0');
- document.getElementById("info").innerText=`Folios: ${folios.length} | Siguiente: ${sig} | Con respaldo: ${fotos.length}`;
+ document.getElementById("contador").innerText=fotos.length+"/6";
 }
-
 document.getElementById("file").addEventListener("change",e=>{
  const files=[...e.target.files].slice(0,6-fotos.length);
  files.forEach(file=>{
@@ -102,38 +101,83 @@ document.getElementById("file").addEventListener("change",e=>{
   reader.readAsDataURL(file);
  });
 });
-
 function genHash(){let r="";const c="abcdef0123456789";for(let i=0;i<24;i++) r+=c[Math.floor(Math.random()*16)];return r;}
-
+async function crearPDFBlob(folioBase, folioCompleto, actividad, fechaStr){
+ const { jsPDF } = window.jspdf;
+ const doc = new jsPDF();
+ doc.setFontSize(14); doc.text("SIBA - "+folioBase, 10, 15);
+ doc.setFontSize(10); doc.text("Folio completo: "+folioCompleto, 10, 22);
+ doc.text("Fecha: "+fechaStr, 10, 28);
+ doc.text("Estacion: ES0477", 10, 34);
+ doc.setFontSize(11);
+ const lines = doc.splitTextToSize(actividad, 190);
+ doc.text(lines, 10, 45);
+ let y = 45 + lines.length*6 + 10;
+ for(let i=0;i<Math.min(fotos.length,3);i++){
+  try{ doc.addImage(fotos[i], 'JPEG', 10 + i*65, y, 60, 40); }catch(e){}
+ }
+ const valLink = "https://robertohernandez-design.github.io/siba/validador.html?v="+folioCompleto;
+ doc.text(valLink, 10, 280);
+ return { blob: doc.output('blob'), nombre: folioCompleto+".pdf", link: valLink };
+}
+async function subirAGitHub(path, blob, mensaje, token){
+ const base64 = await new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.readAsDataURL(blob); });
+ const api = "https://api.github.com/repos/"+REPO+"/contents/"+path;
+ let sha=null;
+ try{
+   const get = await fetch(api,{headers:{Authorization:"token "+token}});
+   if(get.ok){ const d=await get.json(); sha=d.sha; }
+ }catch(e){}
+ const body = { message: mensaje, content: base64 };
+ if(sha) body.sha = sha;
+ const put = await fetch(api,{method:"PUT", headers:{Authorization:"token "+token,"Content-Type":"application/json"}, body:JSON.stringify(body)});
+ if(!put.ok) throw new Error(await put.text());
+ return put.json();
+}
 async function generar(){
  const token=localStorage.getItem("gh_token")||document.getElementById("token").value.trim();
  if(!token) return log("Falta token ghp_");
  const folioInterno=document.getElementById("folioInput").value.padStart(3,'0');
  const actividad=document.getElementById("actividad").value.trim();
  const fechaISO=new Date().toISOString().split('T')[0];
+ const fechaStr=new Date().toLocaleString('es-MX');
  const hash=genHash();
- const folioBase=`ES0477-${fechaISO}-${folioInterno}`;
- const folioCompleto=`${folioBase}-${hash}`;
- const nuevo={folio:folioBase, hash:hash, folio_completo:folioCompleto, fecha:new Date().toLocaleString('es-MX'), timestamp:new Date().toISOString(), estacion:"ES0477", folio_interno:folioInterno, tipo:"Inicio de Turno", actividad:actividad, observaciones:actividad, fotos:fotos.length};
- folios.push(nuevo);
- log(`Subiendo ${folioInterno}...`);
+ const folioBase="ES0477-"+fechaISO+"-"+folioInterno;
+ const folioCompleto=folioBase+"-"+hash;
+ log("Generando "+folioCompleto+"...");
  try{
-  const api=`https://api.github.com/repos/${REPO}/contents/${FILE}`;
-  const get=await fetch(api,{headers:{Authorization:`token ${token}`}});
+  const pdfInfo = await crearPDFBlob(folioBase, folioCompleto, actividad, fechaStr);
+  const url = URL.createObjectURL(pdfInfo.blob);
+  const a = document.createElement('a'); a.href=url; a.download=pdfInfo.nombre; a.click();
+  if(carpetaHandle){
+   try{
+    const fileHandle = await carpetaHandle.getFileHandle(pdfInfo.nombre, {create:true});
+    const writable = await fileHandle.createWritable();
+    await writable.write(pdfInfo.blob);
+    await writable.close();
+    log("📁 Guardado local: "+pdfInfo.nombre);
+   }catch(e){ log("No se pudo guardar local: "+e.message); }
+  }
+  const nuevo={folio:folioBase, hash:hash, folio_completo:folioCompleto, fecha:fechaStr, timestamp:new Date().toISOString(), estacion:"ES0477", folio_interno:folioInterno, tipo:"Inicio de Turno", actividad:actividad, observaciones:actividad, fotos:fotos.length, pdf:"documentos/"+pdfInfo.nombre};
+  folios.push(nuevo);
+  const api="https://api.github.com/repos/"+REPO+"/contents/"+FILE;
+  const get=await fetch(api,{headers:{Authorization:"token "+token}});
   const d=await get.json(); const sha=d.sha;
   const content=btoa(unescape(encodeURIComponent(JSON.stringify(folios,null,2))));
-  const put=await fetch(api,{method:"PUT", headers:{Authorization:`token ${token}`,"Content-Type":"application/json"}, body:JSON.stringify({message:`Agrega folio ${folioInterno}`, content, sha})});
+  const put=await fetch(api,{method:"PUT", headers:{Authorization:"token "+token,"Content-Type":"application/json"}, body:JSON.stringify({message:"Agrega folio "+folioInterno+" con PDF auto", content, sha})});
   if(!put.ok) throw new Error(await put.text());
-  log(`✅ ${folioCompleto} SUBIDO`);
-  document.getElementById("qr").innerHTML=`<a target="_blank" href="https://robertohernandez-design.github.io/siba/validador.html?v=${folioCompleto}">🔗 Ver validador ${folioInterno}</a>`;
-  siguienteNum=parseInt(folioInterno)+1; renderFotos(); cargarFolios();
+  log("Subiendo PDF a GitHub documentos/"+pdfInfo.nombre+"...");
+  await subirAGitHub("documentos/"+pdfInfo.nombre, pdfInfo.blob, "PDF "+folioInterno, token);
+  log("✅ "+folioCompleto+"\n✅ PDF descargado\n✅ Respaldado GitHub");
+  document.getElementById("qr").innerHTML="<a target='_blank' href='"+pdfInfo.link+"'>🔗 Validador "+folioInterno+"</a>";
+  document.getElementById("qrcode").innerHTML="";
+  new QRCode(document.getElementById("qrcode"), {text: pdfInfo.link, width:140, height:140});
+  siguienteNum=parseInt(folioInterno)+1;
  }catch(e){log("Error: "+e.message); folios.pop();}
 }
-
 (function(){
  const t=localStorage.getItem("gh_token"); if(t) document.getElementById("token").value=t;
  renderFotos(); cargarFolios();
- for(let i=0;i<6;i++){const d=document.createElement("div"); d.className="foto"; d.innerText=`Foto ${i+1}`; document.getElementById("grid").appendChild(d);}
 })();
 </script>
 </body>
