@@ -1,78 +1,42 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Validador SIBA V26 FINAL</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SIBA Validador V26.2</title>
 <style>
-body{background:#f1f5f9;font-family:system-ui,Arial;padding:12px;margin:0}
-.card{max-width:700px;margin:20px auto;background:#fff;border-radius:16px;padding:18px;box-shadow:0 8px 24px #0002}
-.ok{border-top:8px solid #16a34a}
-.bad{border-top:8px solid #dc2626}
-.badge{padding:8px 16px;border-radius:20px;font-weight:900;font-size:15px;display:inline-block}
-.green{background:#dcfce7;color:#166534}
-.red{background:#fee2e2;color:#991b1b;border:2px solid #dc2626}
-.alerta{background:#fef2f2;border:3px solid #dc2626;border-radius:12px;padding:14px;margin:14px 0;text-align:center}
-.alerta h2{margin:0 0 6px 0;color:#991b1b;font-size:18px}
-pre{white-space:pre-wrap;background:#f8fafc;border:1px solid #e2e8f0;padding:12px;border-radius:10px;font-size:13px;line-height:1.5}
-small{color:#64748b}
+body{font-family:Arial;padding:15px;background:#f0f0f0}
+.card{background:white;padding:15px;border-radius:10px;max-width:600px;margin:auto}
+.ok{color:green;font-weight:bold;font-size:20px}
+.bad{color:red;font-weight:bold;font-size:20px}
+pre{white-space:pre-wrap;background:#eee;padding:10px;font-size:11px}
 </style>
 </head>
 <body>
-<div class="card" id="card">
-<h1 style="text-align:center;margin:0 0 10px 0">🔍 SIBA ES0477 - VALIDADOR</h1>
-<div id="status">Cargando folio...</div>
+<div class="card">
+<h2>Validador SIBA V26.2 - FIX EXACTO</h2>
+<div id="result">Cargando...</div>
+<pre id="detalle"></pre>
 </div>
 <script>
-const REPO="robertohernandez-design/siba";
-const FILE="folios.json";
-const V=new URLSearchParams(location.search).get('v')||"";
-
 async function main(){
- const el=document.getElementById('status');
- const card=document.getElementById('card');
- if(!V){el.innerHTML="<div class=alerta><h2>Sin folio</h2>Escanea un QR</div>";return;}
+ const v=new URLSearchParams(location.search).get('v')?.trim();
+ if(!v){document.getElementById('result').innerHTML='<span class=bad>Sin folio</span>';return;}
  try{
-  const r=await fetch(`https://raw.githubusercontent.com/${REPO}/main/${FILE}?t=${Date.now()}`);
-  if(!r.ok) throw new Error('No carga folios.json');
-  const folios=await r.json();
-  let e=folios.find(f=>f.folio_completo===V);
-  if(!e){
-    const base=V.split('-').slice(0,4).join('-');
-    e=folios.find(f=>f.folio===base || (f.folio_completo||"").startsWith(base) || V.startsWith(f.folio));
+  const resp=await fetch('https://raw.githubusercontent.com/robertohernandez-design/siba/main/folios.json?t='+Date.now());
+  const folios=await resp.json();
+  // FIX: BUSQUEDA EXACTA, NO INCLUDES
+  let folio=folios.find(f=>f.folio_completo===v);
+  if(!folio) folio=folios.find(f=>f.folio===v);
+  if(!folio) folio=folios.find(f=>v.startsWith(f.folio_completo));
+  if(!folio){
+    const base=v.split('-').slice(0,4).join('-');
+    folio=folios.find(f=>f.folio===base && v.includes(f.hash_corto));
   }
-  if(!e){
-    card.className="card bad";
-    el.innerHTML=`<div class=badge style="background:#fee2e2;color:#991b1b">⛔ FOLIO NO EXISTE / FALSO</div>
-    <div class=alerta><h2>⛔ DOCUMENTO ALTERADO O FALSO</h2>Este folio <b>${V}</b> no está registrado en GitHub.<br>Si te vendieron este PDF como original, es falso.</div>`;
-    return;
-  }
-  // SI EXISTE -> VALIDO PERO CON AVISO GIGANTE PARA DETECTAR COPIAS RECORTADAS
-  card.className="card ok";
-  const lineasOriginales=(e.actividad||"").split('\n').filter(l=>l.trim()).length;
-  el.innerHTML=`
-    <span class="badge green">✅ DOCUMENTO REGISTRADO COMO ORIGINAL</span>
-    <p><b>Folio:</b> ${e.folio_completo}<br><b>Fecha:</b> ${e.fecha||e.timestamp}<br><b>Hash:</b> <small>${e.hash||''}</small><br><b>Fotos:</b> ${e.fotos||0}/6</p>
-    
-    <div class="alerta">
-      <h2>⚠️ IMPORTANTE - VERIFICA QUE TU PDF NO ESTÉ ALTERADO</h2>
-      <p style="margin:6px 0"><b>Tu PDF en papel debe tener EXACTAMENTE ${lineasOriginales} líneas de actividad y este mismo texto letra por letra.</b></p>
-      <p style="margin:6px 0">Si a tu PDF le faltan líneas como:<br>
-      <b>"HIDROCARBUROS EN POZOS..."</b> o <b>"PRUEBAS DE HERMETICIDAD..."</b><br>
-      entonces está <b style="color:#dc2626">ALTERADO aunque diga VÁLIDO</b>, porque copiaron el QR bueno en un PDF recortado.</p>
-    </div>
-
-    <p><b>Actividad ORIGINAL guardada en GitHub (debe ser idéntica a tu PDF):</b></p>
-    <pre>${e.actividad||''}</pre>
-    
-    <p><b>Observaciones:</b></p>
-    <pre>${e.observaciones||''}</pre>
-
-    <p><a href="https://raw.githubusercontent.com/${REPO}/main/documentos/${e.folio_completo}.pdf" target="_blank">📄 Ver PDF original en GitHub</a></p>
-    <p><small>Si el PDF que tienes no coincide letra por letra con este texto, es ALTERADO. Repórtalo.</small></p>
-  `;
- }catch(err){
-  document.getElementById('status').innerHTML="<div class=alerta><h2>Error</h2>"+err.message+"</div>";
- }
+  if(!folio){document.getElementById('result').innerHTML='<span class=bad>❌ NO ENCONTRADO / ALTERADO</span><br>'+v;return;}
+  document.getElementById('result').innerHTML='<span class=ok>✅ DOCUMENTO REGISTRADO COMO ORIGINAL</span><br><b>Folio:</b> '+folio.folio_completo+'<br><b>Fecha:</b> '+folio.fecha+'<br><b>Hash:</b> '+folio.hash_corto+'<br><b>Fotos:</b> '+folio.fotos+'/6';
+  document.getElementById('detalle').innerText=folio.folio_completo+'\n'+folio.fecha+'\n'+folio.actividad+'\n\nPDF: '+folio.pdf+'\nHASH: '+folio.hash;
+ }catch(e){document.getElementById('result').innerHTML='<span class=bad>Error '+e.message+'</span>';}
 }
 main();
 </script>
