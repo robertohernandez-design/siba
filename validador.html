@@ -1,74 +1,41 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Validador SIBA ES0477</title>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Validador SIBA V26 Blindado</title>
 <style>
-body{font-family:system-ui,Arial;background:#f8fafc;padding:15px;margin:0}
-.card{max-width:650px;margin:0 auto;background:#fff;border:2px solid #000;border-radius:12px;padding:20px;box-shadow:0 4px 12px rgba(0,0,0,0.1)}
-.ok{background:#dcfce7;border:2px solid #15803d;color:#14532d;padding:15px;border-radius:10px;text-align:center;font-weight:bold;font-size:18px;margin-bottom:15px}
-.bad{background:#fee2e2;border:2px solid #dc2626;color:#7f1d1d;padding:15px;border-radius:10px;text-align:center;font-weight:bold;font-size:18px;margin-bottom:15px}
-.tabla{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px}
-.tabla td{padding:8px;border-bottom:1px solid #e5e7eb;vertical-align:top}
-.tabla td:first-child{font-weight:bold;width:130px;background:#f9fafb}
-pre{white-space:pre-wrap;font-family:inherit;margin:0}
-.badge{display:inline-block;background:#000;color:#fff;padding:3px 8px;border-radius:20px;font-size:12px}
-a{color:#2563eb;word-break:break-all}
+body{background:#f1f5f9;font-family:system-ui;padding:12px}
+.card{max-width:700px;margin:20px auto;background:#fff;border-radius:14px;padding:18px;box-shadow:0 6px 20px #0002}
+.ok{border-left:7px solid #16a34a}
+.bad{border-left:7px solid #dc2626}
+.badge{padding:7px 14px;border-radius:20px;font-weight:900;font-size:14px;display:inline-block}
+.green{background:#dcfce7;color:#166534}
+.red{background:#fee2e2;color:#991b1b}
+pre{white-space:pre-wrap;background:#f8fafc;border:1px solid #e2e8f0;padding:12px;border-radius:8px;font-size:12px}
 </style>
 </head>
 <body>
-<div class="card">
-<h2 style="text-align:center;margin-top:0">SIBA ES0477 - VALIDADOR</h2>
-<div id="resultado"></div>
-<div id="detalles"></div>
-</div>
+<div class="card" id="card"><h2 style="text-align:center">SIBA ES0477 - VALIDADOR V26</h2><div id="status">Cargando...</div></div>
 <script>
-const REPO="robertohernandez-design/siba";
-const FILE="folios.json";
-const v = new URLSearchParams(window.location.search).get('v')||'';
-async function validar(){
- const resDiv = document.getElementById('resultado');
- const detDiv = document.getElementById('detalles');
- 
- if(!v){
-   resDiv.innerHTML=`<div class="bad">❌ No se recibió folio. Escanea un QR válido</div>`;
-   return;
- }
- 
- try {
-   const r = await fetch(`https://raw.githubusercontent.com/${REPO}/main/${FILE}?t=${Date.now()}`);
-   if(!r.ok) throw new Error('No se pudo cargar folios.json');
-   const folios = await r.json();
-   const f = folios.find(x=>x.folio_completo===v);
-
-   if(f){
-     resDiv.innerHTML=`<div class="ok">✅ Documento VÁLIDO<br>Original sin alteraciones</div>`;
-     detDiv.innerHTML = `
-       <table class="tabla">
-         <tr><td>Folio Completo</td><td><span class="badge">${f.folio_completo}</span></td></tr>
-         <tr><td>Folio</td><td>${f.folio}</td></tr>
-         <tr><td>Hash</td><td>${f.hash}</td></tr>
-         <tr><td>Fecha</td><td>${f.fecha}</td></tr>
-         <tr><td>Estación</td><td>${f.estacion}</td></tr>
-         <tr><td>Folio Interno</td><td>${f.folio_interno}</td></tr>
-         <tr><td>Tipo</td><td>${f.tipo}</td></tr>
-         <tr><td>Fotos</td><td>${f.fotos}</td></tr>
-         <tr><td>PDF</td><td><a href="https://robertohernandez-design.github.io/siba/${f.pdf}" target="_blank">${f.pdf}</a></td></tr>
-         <tr><td>Actividad</td><td><pre>${f.actividad}</pre></td></tr>
-         <tr><td>Observaciones</td><td><pre>${f.observaciones}</pre></td></tr>
-       </table>
-       <p style="text-align:center;margin-top:15px;font-size:12px;color:#666">Timestamp: ${f.timestamp}</p>
-     `;
-   } else {
-     resDiv.innerHTML=`<div class="bad">❌ ADVERTENCIA: El PDF ha sido modificado o alterado<br>No es el documento original<br><br><small style="font-weight:normal">Folio buscado: ${v}</small></div>`;
-     detDiv.innerHTML = `<p style="text-align:center;font-size:13px">Este folio no existe en folios.json</p>`;
-   }
- } catch(e){
-   resDiv.innerHTML=`<div class="bad">Error cargando base de datos: ${e.message}</div>`;
- }
+const REPO="robertohernandez-design/siba";const FILE="folios.json";
+const V=new URLSearchParams(location.search).get('v')||"";
+async function main(){
+ const el=document.getElementById('status');const card=document.getElementById('card');
+ if(!V){el.innerHTML="Sin folio";return;}
+ try{
+  const r=await fetch(`https://raw.githubusercontent.com/${REPO}/main/${FILE}?t=${Date.now()}`);
+  const folios=await r.json();
+  let e=folios.find(f=>f.folio_completo===V);
+  if(!e){const base=V.split('-').slice(0,4).join('-');e=folios.find(f=>V.startsWith(f.folio)||f.folio===base);}
+  if(!e){card.className="card bad";el.innerHTML=`<span class=badge style="background:#fee2e2;color:#991b1b">⛔ NO EXISTE / FALSO</span><p>${V} no está en GitHub</p>`;return;}
+  const hg=(e.hash||"").toLowerCase(); const hv=V.toLowerCase().split('-').pop();
+  const ok = hg.includes(hv) || V.toLowerCase().includes(hg.substring(0,16));
+  if(!ok){card.className="card bad";el.innerHTML=`<span class=badge style="background:#fee2e2;color:#991b1b">⛔ ALTERADO</span><p>Registrado: ${e.folio_completo}</p><p>Escaneado: ${V}</p><pre>${e.actividad}</pre>`;return;}
+  card.className="card ok";
+  el.innerHTML=`<span class=badge style="background:#dcfce7;color:#166534">✅ ORIGINAL VALIDO</span><p><b>${e.folio_completo}</b><br>${e.fecha}</p><pre>${e.actividad}</pre><p><small>Hash: ${hg}</small></p>`;
+ }catch(err){el.innerHTML="Error: "+err.message;}
 }
-validar();
+main();
 </script>
 </body>
 </html>
