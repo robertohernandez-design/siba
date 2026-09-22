@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SIBA V25 - ES0477</title>
+<title>SIBA V26 - HASH REAL</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
@@ -25,7 +25,7 @@ textarea{height:140px}
 </style>
 </head>
 <body>
-<h1>SIBA V25 - 6 FOTOS + QR</h1>
+<h1>SIBA V26 - HASH REAL + 6 FOTOS</h1>
 <h2 id="titulo">FOLIO 054 OFICIAL</h2>
 <div class="token-box">
 <input id="token" type="password" placeholder="Token ghp_...">
@@ -47,7 +47,7 @@ REVISION FISICA DE CONTENEDORES (HERMETICOS Y SIN FISURAS)</textarea>
 <input type="file" id="file" accept="image/*" multiple hidden>
 <div class="grid" id="grid"></div>
 <div id="contador" style="font-size:12px">0/6</div>
-<button class="btn-gen" onclick="generar()">🔒 GENERAR PDF 6 FOTOS + QR + RESPALDO AUTO</button>
+<button class="btn-gen" onclick="generar()">🔒 GENERAR PDF CON HASH REAL + QR BLINDADO</button>
 <div class="footer" id="info">Folios: - | Siguiente: -</div>
 <div id="qr" style="text-align:center;margin-top:10px"></div>
 <div id="qrcode" style="display:flex;justify-content:center;margin-top:10px"></div>
@@ -98,14 +98,22 @@ document.getElementById("file").addEventListener("change",e=>{
   reader.readAsDataURL(file);
  });
 });
-function genHash(){let r="";const c="abcdef0123456789";for(let i=0;i<24;i++) r+=c[Math.floor(Math.random()*16)];return r;}
-async function crearPDFBlob(folioBase, folioCompleto, actividad, fechaStr){
+async function sha256(text){
+ const enc=new TextEncoder().encode(text);
+ const buf=await crypto.subtle.digest('SHA-256',enc);
+ return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function genHashReal(actividad, folioBase, fechaISO){
+ const contenido = (actividad.trim()+"|"+folioBase+"|"+fechaISO).trim();
+ return await sha256(contenido);
+}
+async function crearPDFBlob(folioBase, folioCompleto, actividad, fechaStr, hashFull){
  const { jsPDF } = window.jspdf;
  const doc = new jsPDF();
  doc.setFontSize(14); doc.text("SIBA - "+folioBase, 10, 15);
  doc.setFontSize(10); doc.text("Folio completo: "+folioCompleto, 10, 22);
  doc.text("Fecha: "+fechaStr, 10, 28);
- doc.text("Estacion: ES0477", 10, 34);
+ doc.text("Estacion: ES0477 | HASH: "+hashFull.substring(0,24)+"...", 10, 34);
  doc.setFontSize(11);
  const lines = doc.splitTextToSize(actividad, 190);
  doc.text(lines, 10, 45);
@@ -128,13 +136,13 @@ async function crearPDFBlob(folioBase, folioCompleto, actividad, fechaStr){
    if(canvas){
      const qrData = canvas.toDataURL('image/png');
      doc.addImage(qrData, 'PNG', 10, 200, 40, 40);
-     doc.text("ESCANEA PARA VALIDAR", 55, 215);
+     doc.text("ESCANEA PARA VALIDAR - HASH: "+hashFull.substring(0,12), 55, 215);
      doc.text("Folio: "+folioBase, 55, 222);
    }
    document.body.removeChild(temp);
  }catch(e){}
  doc.setFontSize(9);
- doc.text("Documento valido - Original sin alteraciones", 10, 285);
+ doc.text("Documento valido - Original sin alteraciones - "+hashFull, 10, 285);
  return { blob: doc.output('blob'), nombre: folioCompleto+".pdf", link: valLink };
 }
 async function subirAGitHub(path, blob, mensaje, token){
@@ -152,14 +160,15 @@ async function generar(){
  if(!token) return log("Falta token ghp_");
  const folioInterno=document.getElementById("folioInput").value.padStart(3,'0');
  const actividad=document.getElementById("actividad").value.trim();
+ if(!actividad) return log("Falta actividad");
  const fechaISO=new Date().toISOString().split('T')[0];
  const fechaStr=new Date().toLocaleString('es-MX');
- const hash=genHash();
  const folioBase="ES0477-"+fechaISO+"-"+folioInterno;
- const folioCompleto=folioBase+"-"+hash;
- log("Generando "+folioCompleto+" con 6 fotos...");
+ const hashFull = await genHashReal(actividad, folioBase, fechaISO);
+ const folioCompleto=folioBase+"-"+hashFull.substring(0,24);
+ log("Generando "+folioCompleto+" con HASH REAL...");
  try{
-  const pdfInfo = await crearPDFBlob(folioBase, folioCompleto, actividad, fechaStr);
+  const pdfInfo = await crearPDFBlob(folioBase, folioCompleto, actividad, fechaStr, hashFull);
   const url = URL.createObjectURL(pdfInfo.blob);
   const a = document.createElement('a'); a.href=url; a.download=pdfInfo.nombre; a.click();
   if(carpetaHandle){
@@ -168,16 +177,22 @@ async function generar(){
     const w = await fh.createWritable(); await w.write(pdfInfo.blob); await w.close();
    }catch(e){}
   }
-  const nuevo={folio:folioBase, hash:hash, folio_completo:folioCompleto, fecha:fechaStr, timestamp:new Date().toISOString(), estacion:"ES0477", folio_interno:folioInterno, tipo:"Inicio de Turno", actividad:actividad, observaciones:actividad, fotos:fotos.length, pdf:"documentos/"+pdfInfo.nombre};
+  const nuevo={
+    folio:folioBase, hash:hashFull, hash_corto:hashFull.substring(0,24),
+    folio_completo:folioCompleto, fecha:fechaStr, timestamp:new Date().toISOString(),
+    estacion:"ES0477", folio_interno:folioInterno, tipo:"Inicio de Turno",
+    actividad:actividad, observaciones:actividad, fotos:fotos.length,
+    pdf:"documentos/"+pdfInfo.nombre, sha_actividad: await sha256(actividad.trim())
+  };
   folios.push(nuevo);
   const api="https://api.github.com/repos/"+REPO+"/contents/"+FILE;
   const get=await fetch(api,{headers:{Authorization:"token "+token}});
   const d=await get.json(); const sha=d.sha;
   const content=btoa(unescape(encodeURIComponent(JSON.stringify(folios,null,2))));
-  const put=await fetch(api,{method:"PUT", headers:{Authorization:"token "+token,"Content-Type":"application/json"}, body:JSON.stringify({message:"Agrega folio "+folioInterno+" 6 fotos QR", content, sha})});
+  const put=await fetch(api,{method:"PUT", headers:{Authorization:"token "+token,"Content-Type":"application/json"}, body:JSON.stringify({message:"Agrega folio "+folioInterno+" HASH REAL", content, sha})});
   if(!put.ok) throw new Error(await put.text());
-  await subirAGitHub("documentos/"+pdfInfo.nombre, pdfInfo.blob, "PDF "+folioInterno, token);
-  log("✅ "+folioCompleto+"\n✅ 6 FOTOS\n✅ QR OK\n✅ GitHub OK");
+  await subirAGitHub("documentos/"+pdfInfo.nombre, pdfInfo.blob, "PDF "+folioInterno+" hash real", token);
+  log("✅ "+folioCompleto+"\n✅ HASH REAL: "+hashFull.substring(0,16)+"...\n✅ 6 FOTOS\n✅ QR BLINDADO\n✅ GitHub OK");
   document.getElementById("qr").innerHTML="<a target='_blank' href='"+pdfInfo.link+"'>🔗 Validador "+folioInterno+"</a>";
   document.getElementById("qrcode").innerHTML="";
   new QRCode(document.getElementById("qrcode"), {text: pdfInfo.link, width:140, height:140});
