@@ -1,44 +1,37 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SIBA Validador V26.2</title>
-<style>
-body{font-family:Arial;padding:15px;background:#f0f0f0}
-.card{background:white;padding:15px;border-radius:10px;max-width:600px;margin:auto}
-.ok{color:green;font-weight:bold;font-size:20px}
-.bad{color:red;font-weight:bold;font-size:20px}
-pre{white-space:pre-wrap;background:#eee;padding:10px;font-size:11px}
-</style>
-</head>
-<body>
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{font-family:Arial;padding:15px;background:#f5f5f5;text-align:center} .card{background:white;padding:20px;border-radius:12px;max-width:500px;margin:0 auto} .ok{background:#0a7a3c;color:white;padding:15px;border-radius:8px;font-weight:bold;font-size:18px} .bad{background:#d00000;color:white;padding:15px;border-radius:8px;font-weight:bold;font-size:18px} .hash{font-family:monospace;font-size:10px;word-break:break-all;background:#eee;padding:8px;margin-top:10px} a{color:#0a7a3c}</style>
+</head><body>
 <div class="card">
-<h2>Validador SIBA V26.2 - FIX EXACTO</h2>
-<div id="result">Cargando...</div>
-<pre id="detalle"></pre>
+<h2>SIBA - VALIDADOR ES0477</h2>
+<div id="status">Validando...</div>
+<div id="info"></div>
 </div>
 <script>
-async function main(){
- const v=new URLSearchParams(location.search).get('v')?.trim();
- if(!v){document.getElementById('result').innerHTML='<span class=bad>Sin folio</span>';return;}
- try{
-  const resp=await fetch('https://raw.githubusercontent.com/robertohernandez-design/siba/main/folios.json?t='+Date.now());
-  const folios=await resp.json();
-  // FIX: BUSQUEDA EXACTA, NO INCLUDES
-  let folio=folios.find(f=>f.folio_completo===v);
-  if(!folio) folio=folios.find(f=>f.folio===v);
-  if(!folio) folio=folios.find(f=>v.startsWith(f.folio_completo));
-  if(!folio){
-    const base=v.split('-').slice(0,4).join('-');
-    folio=folios.find(f=>f.folio===base && v.includes(f.hash_corto));
-  }
-  if(!folio){document.getElementById('result').innerHTML='<span class=bad>❌ NO ENCONTRADO / ALTERADO</span><br>'+v;return;}
-  document.getElementById('result').innerHTML='<span class=ok>✅ DOCUMENTO REGISTRADO COMO ORIGINAL</span><br><b>Folio:</b> '+folio.folio_completo+'<br><b>Fecha:</b> '+folio.fecha+'<br><b>Hash:</b> '+folio.hash_corto+'<br><b>Fotos:</b> '+folio.fotos+'/6';
-  document.getElementById('detalle').innerText=folio.folio_completo+'\n'+folio.fecha+'\n'+folio.actividad+'\n\nPDF: '+folio.pdf+'\nHASH: '+folio.hash;
- }catch(e){document.getElementById('result').innerHTML='<span class=bad>Error '+e.message+'</span>';}
+async function sha256(s){let b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)); return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('')}
+async function run(){
+ let params=new URLSearchParams(location.search); let v=params.get('v'); if(!v){document.getElementById('status').innerHTML='<div class=bad>❌ SIN FOLIO</div>';return;}
+ let folioCompleto=v.trim();
+ let base=folioCompleto.substring(0,folioCompleto.lastIndexOf('-')); let hashCortoRecibido=folioCompleto.substring(folioCompleto.lastIndexOf('-')+1);
+ // descarga folios.json
+ let folios=await fetch('https://raw.githubusercontent.com/robertohernandez-design/siba/main/folios.json?'+Date.now()).then(r=>r.json()).catch(()=>[]);
+ let reg=folios.find(f=>f.folio_completo===folioCompleto || f.folio===base);
+ if(!reg){
+   document.getElementById('status').innerHTML='<div class=bad>❌ FOLIO NO ENCONTRADO<br>DOCUMENTO ALTERADO O NO REGISTRADO</div>';
+   document.getElementById('info').innerHTML='<div class=hash>'+folioCompleto+'</div>';
+   return;
+ }
+ // Recalcular hash
+ let actividadLimpia=reg.actividad; let fecha=reg.fecha;
+ let hashReal=await sha256(reg.folio+actividadLimpia+fecha); let cortoReal=hashReal.substring(0,24);
+ let hashOK = (cortoReal===reg.hash_corto && reg.hash_corto===hashCortoRecibido && hashReal===reg.hash);
+ 
+ if(hashOK){
+   document.getElementById('status').innerHTML='<div class=ok>✅ DOCUMENTO ORIGINAL<br>NO HA SIDO ALTERADO</div>';
+   document.getElementById('info').innerHTML=`<p><b>Folio:</b> ${reg.folio}<br><b>Fecha Fija:</b> ${reg.fecha}<br><b>Folio Interno:</b> ${reg.folio_interno}<br><b>Fotos:</b> ${reg.fotos||6}</p><div class=hash>HASH: ${reg.hash}<br>CORTO: ${reg.hash_corto}</div><p><a href="https://raw.githubusercontent.com/robertohernandez-design/siba/main/${reg.pdf}" target="_blank">Ver PDF Original</a></p><p style="font-size:11px;color:#666">Validado: ${new Date().toLocaleString()}</p>`;
+ } else {
+   document.getElementById('status').innerHTML='<div class=bad>⛔️ DOCUMENTO ALTERADO<br>HASH NO COINCIDE</div>';
+   document.getElementById('info').innerHTML=`<p style="color:#d00000"><b>El contenido fue modificado después de generarse</b></p><div class=hash>ESPERADO: ${reg.hash_corto}<br>RECIBIDO: ${hashCortoRecibido}<br>HASH COMPLETO ESPERADO: ${reg.hash}</div><p><b>Folio:</b> ${reg.folio}<br><b>Fecha:</b> ${reg.fecha}</p>`;
+ }
 }
-main();
-</script>
-</body>
-</html>
+run();
+</script></body></html>
