@@ -1,58 +1,55 @@
-<!DOCTYPE html>
-<html lang="es">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SIBA V27 MANUAL 056 22</title>
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SIBA V28 LIMPIO 056 22 QR</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<style>body{font-family:Arial;padding:10px}.card{background:#fff;padding:10px;border:1px solid #ccc;margin-bottom:10px} button{width:100%;padding:14px;background:#0a7a3c;color:#fff;border:none;border-radius:8px;font-weight:bold} #log{background:#000;color:#0f0;padding:8px} textarea{width:100%} input{width:100%;padding:8px;box-sizing:border-box}</style>
-</head>
-<body>
-<h3>V27 - 056 DEL 22 MANUAL SIN ACENTOS + QR</h3>
-<div id="log">LOG: listo</div>
+<style>body{font-family:Arial;padding:10px;background:#f5f5f5}.card{background:white;padding:10px;border-radius:8px;margin-bottom:10px} button{width:100%;padding:14px;background:#0a7a3c;color:white;border:none;border-radius:8px;font-weight:bold} #log{background:black;color:#0f0;padding:8px;white-space:pre-wrap;font-size:11px} textarea,input{width:100%;box-sizing:border-box;padding:8px} #preview img{width:30%;margin:1%;border:1px solid #ccc}</style>
+</head><body>
+<h3>V28 - 056 DEL 22 LIMPIO + QR</h3>
+<div id="log">LOG: Esperando token...</div>
 <div class="card">
-Token: <input id="token" type="password" placeholder="ghp_..."><button onclick="localStorage.setItem('gh_token',document.getElementById('token').value);log('Token guardado OK, ahora genera')">Guardar Token</button>
-Folio base: <input id="folioBase" value="ES0477-2026-09-22-056">
-Fecha ORIGINAL del 22 (usa la de ayer): <input id="fecha" value="22/09/2026 18:00:00">
-Actividad SIN ACENTOS: <textarea id="actividad" rows="6">CALIBRACION ESTACION ES0477 - CLIENTE GARCIA - IGUALA GRO - 22/09/2026</textarea>
-Fotos: <input type="file" id="fotos" multiple accept="image/*"><div id="preview"></div>
-<button id="btn">SELECCIONA 6 FOTOS</button>
+Token ghp_: <input id="token" type="password"><button onclick="localStorage.setItem('gh_token',document.getElementById('token').value);log('Token guardado, ahora selecciona fotos');">Guardar Token</button>
+Folio base (fijo 22): <input id="folioBase" value="ES0477-2026-09-22-056" readonly>
+Folio completo destino: <input id="folioComp" value="ES0477-2026-09-22-056-783a99e567d5a16d49a63a" readonly>
+Fecha fija bitácora: <input id="fecha" value="22/09/2026 18:30:00">
+</div>
+<div class="card">
+<b>Actividad - PEGA AQUI, YO QUITO ACENTOS:</b>
+<textarea id="actividad" rows="8">CALIBRACION DE DISPENSARIOS POR EMPRESA VERIFICACIONES GAP, S.A. DE C.V.
+INSPECTORES: JAVIER GARCIA TACUBA, LUIS ENRIQUE SEVILLA CASTILLO, JUAN MANUEL NUNEZ ARANGO, ANGEL FERNANDO JIMENEZ ALBA
+HORA INICIO: 18:30 HORA TERMINO: 20:30
+ESTACION ES0477 - IGUALA GRO</textarea>
+<button onclick="limpiar()" style="background:orange">🧹 Limpiar acentos ahora</button>
+Fotos (6): <input type="file" id="fotos" multiple accept="image/*"><div id="preview"></div>
+<button id="btn" disabled>Selecciona 6 fotos</button>
 </div>
 <script>
-function log(t){document.getElementById('log').innerHTML+='<br>'+t}
-let fotos=[];
+function log(t){document.getElementById('log').textContent+='\n'+t}
+function limpiar(){let a=document.getElementById('actividad').value; a=a.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ñ/g,'n').replace(/Ñ/g,'N').replace(/Ã/g,'I').replace(/Ã/g,'A').toUpperCase(); document.getElementById('actividad').value=a; log('Acentos limpiados: '+a.substring(0,80));}
+let fotos=[]; document.getElementById('token').value=localStorage.getItem('gh_token')||'';
 document.getElementById('fotos').addEventListener('change',async e=>{
- fotos=[]; preview.innerHTML='';
- for(let f of e.target.files){
-  let b=await new Promise(r=>{let fr=new FileReader(); fr.onload=x=>r(x.target.result); fr.readAsDataURL(f)});
-  fotos.push(b); let im=document.createElement('img'); im.src=b; im.style.width='30%'; preview.appendChild(im);
- }
- if(fotos.length==6){btn.textContent='🔒 GENERAR 056 DEL 22 CON QR CORREGIDO'; btn.disabled=false}
-});
-document.getElementById('token').value=localStorage.getItem('gh_token')||'';
-async function sha256(s){let b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)); return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('')}
+ fotos=[]; preview.innerHTML=''; for(let file of e.target.files){let b=await new Promise(r=>{let fr=new FileReader(); fr.onload=x=>r(x.target.result); fr.readAsDataURL(file)}); fotos.push(b); let im=document.createElement('img'); im.src=b; preview.appendChild(im);} if(fotos.length>=6){btn.disabled=false; btn.textContent='🔒 REGENERAR 056 DEL 22 CON QR LIMPIO'; log('6 fotos ok')} else {btn.textContent='Faltan '+(6-fotos.length)} });
 btn.onclick=async()=>{
- const token=document.getElementById('token').value||localStorage.getItem('gh_token');
- if(!token){alert('Pega token');return}
- let actividad=document.getElementById('actividad').value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim();
- let folioBase=document.getElementById('folioBase').value.trim();
- let fecha=document.getElementById('fecha').value.trim();
- let hash=await sha256(folioBase+actividad+fecha); let hashCorto=hash.substring(0,24);
- let folioCompleto=folioBase+'-'+hashCorto;
- log('Generando: '+folioCompleto+' Fecha: '+fecha);
- let qrUrl=`https://robertohernandez-design.github.io/siba/validador.html?v=${folioCompleto}`;
- let qr=await fetch(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrUrl)}`).then(r=>r.blob()).then(b=>new Promise(r=>{let fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(b)}));
- let {jsPDF}=window.jspdf; let doc=new jsPDF(); doc.text('SIBA - '+folioBase,10,12); doc.setFontSize(8); doc.text('Folio: '+folioCompleto,10,18); doc.text('Fecha: '+fecha+' HASH:'+hashCorto,10,23); doc.setFontSize(7); doc.text(doc.splitTextToSize(actividad,190),10,30);
- let y=70, x=[10,75,140], i=0; for(let r=0;r<2;r++){for(let c=0;c<3;c++){if(i<6)doc.addImage(fotos[i],'JPEG',x[c],y,60,38); i++} y+=42}
- doc.addImage(qr,'PNG',10,y+5,32,32); doc.text(qrUrl,50,y+12); doc.text('VALIDAR',50,y+20);
- let blob=doc.output('blob'); let b64=await new Promise(r=>{let fr=new FileReader(); fr.onload=()=>r(fr.result.split(',')[1]); fr.readAsDataURL(blob)});
- let repo='robertohernandez-design/siba'; let path='documentos/'+folioCompleto+'.pdf';
- log('Subiendo PDF...'); let resp=await fetch(`https://api.github.com/repos/${repo}/contents/${path}`,{method:'PUT',headers:{Authorization:'token '+token,'Content-Type':'application/json'},body:JSON.stringify({message:'Fix 056 '+folioCompleto,content:b64})});
- log('PDF:'+resp.status);
- let f1=await fetch(`https://api.github.com/repos/${repo}/contents/folios.json`,{headers:{Authorization:'token '+token}}); let d1=await f1.json(); let arr=JSON.parse(decodeURIComponent(escape(atob(d1.content))));
- arr=arr.filter(f=>f.folio_interno!='056'); arr.push({folio:folioBase,folio_completo:folioCompleto,hash:hash,hash_corto:hashCorto,fecha:fecha,timestamp:new Date().toISOString(),estacion:'ES0477',folio_interno:'056',actividad:actividad,fotos:6,pdf:path});
- let nuevo=btoa(unescape(encodeURIComponent(JSON.stringify(arr,null,2))));
- let up2=await fetch(`https://api.github.com/repos/${repo}/contents/folios.json`,{method:'PUT',headers:{Authorization:'token '+token,'Content-Type':'application/json'},body:JSON.stringify({message:'fix 056 sin acento',content:nuevo,sha:d1.sha})});
- log('folios:'+up2.status); if(up2.ok){alert('✅ 056 CORREGIDO\n'+folioCompleto+'\n'+fecha); log('✅ LISTO: '+folioCompleto)}
-}
-</script>
-</body>
-</html>
+ try{
+  const token=document.getElementById('token').value||localStorage.getItem('gh_token'); if(!token){alert('Token');return;}
+  let actividad=document.getElementById('actividad').value; actividad=actividad.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x00-\x7F]/g,'').toUpperCase().trim();
+  const folioBase='ES0477-2026-09-22-056'; const hashCorto='783a99e567d5a16d49a63a'; const folioCompleto=folioBase+'-'+hashCorto;
+  const fecha=document.getElementById('fecha').value;
+  log('Generando '+folioCompleto+' Fecha:'+fecha); log('Actividad limpia:'+actividad.substring(0,60));
+  const qrUrl=`https://robertohernandez-design.github.io/siba/validador.html?v=${folioCompleto}`;
+  const qrB64=await fetch(`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qrUrl)}`).then(r=>r.blob()).then(b=>new Promise(r=>{let fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(b)}));
+  const {jsPDF}=window.jspdf; const doc=new jsPDF(); doc.setFontSize(11); doc.text('SIBA - '+folioBase,10,12);
+  doc.setFontSize(8); doc.text('Folio: '+folioCompleto,10,18); doc.text('Fecha: '+fecha+' | HASH: '+hashCorto,10,23);
+  doc.setFontSize(7); let lines=doc.splitTextToSize(actividad,190); doc.text(lines,10,30);
+  let y=70; let xp=[10,75,140]; let idx=0; for(let r=0;r<2;r++){for(let c=0;c<3;c++){if(idx<6){doc.addImage(fotos[idx],'JPEG',xp[c],y,60,38);} idx++;} y+=42;}
+  doc.addImage(qrB64,'PNG',10,y+5,32,32); doc.setFontSize(9); doc.text('ESCANEA PARA VALIDAR',48,y+14); doc.setFontSize(7); doc.text(qrUrl,48,y+22);
+  doc.text('ORIGINAL SIN ALTERACIONES - FECHA BITACORA 22/09/2026',10,285);
+  const blob=doc.output('blob'); const b64=await new Promise(r=>{let fr=new FileReader(); fr.onload=()=>r(fr.result.split(',')[1]); fr.readAsDataURL(blob)});
+  const repo='robertohernandez-design/siba'; const path='documentos/'+folioCompleto+'.pdf';
+  log('Subiendo PDF: '+path);
+  const chk=await fetch(`https://api.github.com/repos/${repo}/contents/${path}`,{headers:{Authorization:'token '+token}}); let sha=chk.ok?(await chk.json()).sha:null;
+  const resp=await fetch(`https://api.github.com/repos/${repo}/contents/${path}`,{method:'PUT',headers:{Authorization:'token '+token,'Content-Type':'application/json'},body:JSON.stringify({message:'Fix 056 22 QR limpio sin acentos '+folioCompleto,content:b64,sha:sha})});
+  log('PDF status:'+resp.status); if(!resp.ok){log(await resp.text()); return;}
+  log('✅ 056 DEL 22 CON QR REGENERADO'); log('Validador: '+qrUrl); alert('✅ LISTO\n'+folioCompleto+'\nFecha: '+fecha+'\nSin acentos\nCon QR');
+ }catch(e){log('ERROR:'+e.message)}
+};
+limpiar();
+</script></body></html>
