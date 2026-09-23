@@ -1,38 +1,63 @@
 <!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<style>body{font-family:Arial;padding:15px;background:#f5f5f5;text-align:center} .card{background:white;padding:20px;border-radius:12px;max-width:500px;margin:0 auto;box-shadow:0 2px 10px rgba(0,0,0,.1)} .ok{background:#0a7a3c;color:white;padding:15px;border-radius:8px;font-weight:bold;font-size:18px} .bad{background:#d00000;color:white;padding:15px;border-radius:8px;font-weight:bold;font-size:18px} .hash{font-family:monospace;font-size:10px;word-break:break-all;background:#eee;padding:8px;margin-top:10px;border-radius:6px}</style>
+<title>SIBA VALIDADOR</title>
+<style>body{font-family:Arial;padding:15px;background:#f5f5f5;text-align:center} .card{background:white;padding:22px;border-radius:14px;max-width:520px;margin:0 auto;box-shadow:0 3px 12px rgba(0,0,0,.15)} .ok{background:#0a7a3c;color:white;padding:16px;border-radius:10px;font-weight:bold;font-size:19px;line-height:1.3} .bad{background:#d00000;color:white;padding:16px;border-radius:10px;font-weight:bold;font-size:19px;line-height:1.3} .hash{font-family:monospace;font-size:10px;word-break:break-all;background:#eee;padding:10px;border-radius:8px;margin-top:12px} .info{font-size:13px;text-align:left;margin-top:14px}</style>
 </head><body>
 <div class="card">
-<h2>SIBA - VALIDADOR ES0477</h2>
+<h2 style="margin:0 0 12px">SIBA - VALIDADOR ES0477</h2>
 <div id="status">Validando...</div>
 <div id="info"></div>
 </div>
 <script>
-async function run(){
- let params=new URLSearchParams(location.search); let v=params.get('v'); 
- if(!v){document.getElementById('status').innerHTML='<div class=bad>❌ SIN FOLIO</div>';return;}
- let folioCompleto=v.trim();
- let folios=await fetch('https://raw.githubusercontent.com/robertohernandez-design/siba/main/folios.json?'+Date.now()).then(r=>r.json()).catch(()=>[]);
- let reg=folios.find(f=>f.folio_completo===folioCompleto);
- 
- if(!reg){
-   // buscar si es solo base
-   let base=folioCompleto.substring(0,folioCompleto.lastIndexOf('-'));
-   reg=folios.find(f=>f.folio===base || f.folio_completo.startsWith(base));
-   if(!reg){
-     document.getElementById('status').innerHTML='<div class=bad>⛔️ FOLIO NO ENCONTRADO<br>DOCUMENTO NO REGISTRADO</div><div class=hash>'+folioCompleto+'</div>';
-     return;
-   }
-   // si corto no coincide
-   let cortoRecibido=folioCompleto.substring(folioCompleto.lastIndexOf('-')+1);
-   if(reg.hash_corto!==cortoRecibido){
-     document.getElementById('status').innerHTML='<div class=bad>⛔️ DOCUMENTO ALTERADO<br>HASH NO COINCIDE</div><div class=hash>ESPERADO: '+reg.hash_corto+'<br>RECIBIDO: '+cortoRecibido+'</div><p><b>Folio:</b> '+reg.folio+'</p>';
-     return;
-   }
- }
+async function sha256(s){let b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)); return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('')}
 
- // SI LLEGA AQUI ES ORIGINAL - no recalculamos hash viejo
- document.getElementById('status').innerHTML='<div class=ok>✅ DOCUMENTO ORIGINAL<br>NO HA SIDO ALTERADO</div>';
- document.getElementById('info').innerHTML=`<p><b>Folio:</b> ${reg.folio}<br><b>Folio Completo:</b> ${reg.folio_completo}<br><b>Fecha Fija:</b> ${reg.fecha}<br><b>Folio Interno:</b> ${reg.folio_interno}<br><b>Fotos:</b> ${reg.fotos||6}</p><div class=hash>HASH: ${reg.hash}<br>CORTO: ${reg.hash_corto}</div><p><a href="https://raw.githubusercontent.com/robertohernandez-design/siba/main/${reg.pdf}" target="_blank">Ver PDF Original</a></p><p style="font-size:11px;color:#666">Validado: ${new Date().toLocaleString()}</p>`;
+async function run(){
+ let v=new URLSearchParams(location.search).get('v');
+ if(!v){document.getElementById('status').innerHTML='<div class=bad>❌ SIN FOLIO</div>';return;}
+ v=v.trim();
+ try{
+  let folios=await fetch('https://raw.githubusercontent.com/robertohernandez-design/siba/main/folios.json?t='+Date.now()).then(r=>r.json());
+  let reg=folios.find(f=>f.folio_completo===v);
+  if(!reg){
+    let base=v.substring(0,v.lastIndexOf('-'));
+    let corto=v.substring(v.lastIndexOf('-')+1);
+    reg=folios.find(f=>f.folio===base);
+    if(!reg){
+      document.getElementById('status').innerHTML='<div class=bad>⛔️ FOLIO NO ENCONTRADO<br><span style="font-size:13px">DOCUMENTO NO REGISTRADO - POSIBLE ALTERACIÓN</span></div><div class=hash>'+v+'</div>';
+      return;
+    }
+    // si el corto del QR no es el guardado -> alterado
+    if(reg.hash_corto!==corto){
+      document.getElementById('status').innerHTML='<div class=bad>⛔️ DOCUMENTO ALTERADO<br><span style="font-size:13px">HASH NO COINCIDE</span></div><div class=hash>ESPERADO: '+reg.hash_corto+'<br>RECIBIDO: '+corto+'</div>';
+      return;
+    }
+  }
+
+  // HIBRIDO: 055 y anteriores = modo compatibilidad (siempre verde si existe)
+  let numFolio = parseInt((reg.folio_interno||reg.folio||'0').toString().replace(/\D/g,'')) || 0;
+  let esFolioViejo = numFolio <= 55 || reg.folio.includes('-055');
+
+  if(esFolioViejo){
+    document.getElementById('status').innerHTML='<div class=ok>✅ DOCUMENTO ORIGINAL<br><span style="font-size:14px;font-weight:normal">NO HA SIDO ALTERADO (055 - COMPATIBILIDAD)</span></div>';
+  } else {
+    // 056 en adelante = modo estricto, recalcula HASH
+    let actividad = reg.actividad || '';
+    let fecha = reg.fecha || '';
+    let hashRecalc = await sha256(reg.folio + actividad + fecha);
+    let cortoRecalc = hashRecalc.substring(0,24);
+    if(hashRecalc===reg.hash && cortoRecalc===reg.hash_corto){
+      document.getElementById('status').innerHTML='<div class=ok>✅ DOCUMENTO ORIGINAL<br><span style="font-size:14px;font-weight:normal">NO HA SIDO ALTERADO - HASH VERIFICADO</span></div>';
+    }else{
+      document.getElementById('status').innerHTML='<div class=bad>⛔️ DOCUMENTO ALTERADO<br><span style="font-size:13px">EL CONTENIDO FUE MODIFICADO</span></div><div class=hash>ESPERADO: '+reg.hash+'<br>RECALCULADO: '+hashRecalc+'</div>';
+      document.getElementById('info').innerHTML='<p style="color:#d00000"><b>Actividad o fecha modificada en folios.json</b></p>';
+      return;
+    }
+  }
+
+  document.getElementById('info').innerHTML='<div class=info><b>Folio:</b> '+reg.folio+'<br><b>Completo:</b> '+reg.folio_completo+'<br><b>Fecha fija:</b> '+reg.fecha+'<br><b>Interno:</b> '+reg.folio_interno+'<br><b>Fotos:</b> '+(reg.fotos||6)+'</div><div class=hash>HASH: '+reg.hash+'<br>CORTO: '+reg.hash_corto+'</div><p><a href="https://raw.githubusercontent.com/robertohernandez-design/siba/main/'+reg.pdf+'" target="_blank">Ver PDF Original</a></p><p style="font-size:11px;color:#888">Validado: '+new Date().toLocaleString()+'</p>';
+
+ }catch(e){
+  document.getElementById('status').innerHTML='<div class=bad>❌ ERROR<br><span style="font-size:12px">'+e.message+'</span></div>';
+ }
 }
 run();
 </script></body></html>
