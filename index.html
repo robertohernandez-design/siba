@@ -1,72 +1,59 @@
 <!DOCTYPE html><html><head><meta charset="UTF-8"><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<style>body{font-family:Arial;padding:10px;background:#f5f5f5}.card{background:white;padding:10px;border-radius:8px;margin-bottom:10px} button{width:100%;padding:14px;background:#0a7a3c;color:white;border:none;border-radius:8px;font-weight:bold} #log{background:black;color:#0f0;padding:8px;white-space:pre-wrap;font-size:11px}</style>
+<style>body{font-family:Arial;padding:10px;background:#f5f5f5} button{width:100%;padding:14px;background:#0a7a3c;color:white;border:none;border-radius:8px;font-weight:bold} #log{background:black;color:#0f0;padding:8px;white-space:pre-wrap;font-size:11px}</style>
 </head><body>
-<h3>V30 - 056 DEL 22 HASH NUEVO LIMPIO + QR - FOTOS FLEX 3-6</h3>
+<h3>V31 - 057 DEL 23 HASH LIMPIO + QR - FLEX 3-6 FOTOS</h3>
 <div id="log">LOG...</div>
 Token: <input id="token" type="password" style="width:100%"><button onclick="localStorage.setItem('gh_token',token.value);log('Token OK')">Guardar Token</button>
-Fecha BITACORA FIJA 22: <input id="fecha" value="22/09/2026 18:30:00" style="width:100%">
-<textarea id="actividad" rows="8" style="width:100%">CALIBRACION DE DISPENSARIOS POR EMPRESA VERIFICACIONES GAP, S.A. DE C.V.
-INSPECTORES Y AUXILIARES: JAVIER GARCIA TACUBA, LUIS ENRIQUE SEVILLA CASTILLO
-JUAN MANUEL NUNEZ ARANGO, ANGEL FERNANDO JIMENEZ ALBA
-HORA DE INICIO: 18:30 HORA DE TERMINO 20:30
+Fecha BITACORA FIJA 23: <input id="fecha" value="23/09/2026 18:30:00" style="width:100%">
+<textarea id="actividad" rows="8" style="width:100%">MANTENIMIENTO A DISPENSARIOS - CAMBIO DE BREAKAWAY Y FILTROS
 ESTACION ES0477 IGUALA GRO</textarea>
-Fotos 3 a 6: <input type="file" id="fotos" multiple accept="image/*"><div id="preview"></div>
+Fotos 3 a 6: <input type="file" id="fotos" multiple accept="image/*"><div id="preview" style="display:flex;gap:4px;flex-wrap:wrap;margin:6px 0"></div>
 <button id="btn" disabled>Selecciona minimo 3 fotos</button>
 <script>
 function log(t){document.getElementById('log').textContent+='\n'+t}
 async function sha256(s){let b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)); return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('')}
 let fotos=[]; token.value=localStorage.getItem('gh_token')||'';
-fotos_input=document.getElementById('fotos'); preview=document.getElementById('preview');
+let fotos_input=document.getElementById('fotos'); let preview=document.getElementById('preview'); let btn=document.getElementById('btn');
 fotos_input.addEventListener('change',async e=>{
   fotos=[]; preview.innerHTML='';
   let files = Array.from(e.target.files).slice(0,6);
   for(let f of files){
     let b=await new Promise(r=>{let fr=new FileReader(); fr.onload=v=>r(v.target.result); fr.readAsDataURL(f)});
     fotos.push(b);
-    let im=document.createElement('img'); im.src=b; im.style.width='30%'; im.style.margin='2px'; preview.appendChild(im);
+    let im=document.createElement('img'); im.src=b; im.style.width='32%'; preview.appendChild(im);
   }
   if(fotos.length>=3){
     btn.disabled=false;
-    btn.textContent='GENERAR 056 NUEVO DEL 22 LIMPIO CON QR - '+fotos.length+' FOTOS';
-    log(fotos.length+' fotos OK - flexible');
+    btn.textContent='GENERAR 057 NUEVO DEL 23 LIMPIO CON QR - '+fotos.length+' FOTOS';
+    log(fotos.length+' fotos OK');
   } else {
     btn.disabled=true;
     btn.textContent='Selecciona minimo 3 fotos (llevas '+fotos.length+')';
-    log('Faltan fotos: '+fotos.length+'/3');
   }
 });
 btn.onclick=async()=>{
  let tok=token.value||localStorage.getItem('gh_token'); if(!tok){alert('token');return;}
  if(fotos.length<3){alert('Minimo 3 fotos');return;}
  let actividad=document.getElementById('actividad').value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x00-\x7F]/g,' ').toUpperCase().replace(/\s+/g,' ').trim();
- let folioBase='ES0477-2026-09-22-056'; let fecha=document.getElementById('fecha').value.trim();
+ let folioBase='ES0477-2026-09-23-057'; let fecha=document.getElementById('fecha').value.trim();
  let hash=await sha256(folioBase+actividad+fecha); let hashCorto=hash.substring(0,24); let folioCompleto=folioBase+'-'+hashCorto;
- log('NUEVO FOLIO: '+folioCompleto); log('HASH: '+hash); log('Fotos a usar: '+fotos.length);
+ log('NUEVO FOLIO: '+folioCompleto);
  let qrUrl=`https://robertohernandez-design.github.io/siba/validador.html?v=${folioCompleto}`;
  let qr=await fetch(`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qrUrl)}`).then(r=>r.blob()).then(b=>new Promise(r=>{let fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(b)}));
  let {jsPDF}=window.jspdf; let doc=new jsPDF(); doc.setFontSize(11); doc.text('SIBA - '+folioBase,10,12); doc.setFontSize(8); doc.text('Folio: '+folioCompleto,10,18); doc.text('Fecha: '+fecha+' HASH:'+hashCorto+' FOTOS:'+fotos.length,10,23); doc.setFontSize(7); doc.text(doc.splitTextToSize(actividad,190),10,30);
  let y=70,x=[10,75,140],i=0;
- for(let r=0;r<2;r++){
-   for(let c=0;c<3;c++){
-     if(i<fotos.length){
-       doc.addImage(fotos[i],'JPEG',x[c],y,60,38);
-     } else {
-       doc.setDrawColor(180); doc.rect(x[c],y,60,38); doc.setFontSize(7); doc.text('NO APLICA',x[c]+18,y+20);
-     }
-     i++;
-   }
-   y+=42;
- }
+ for(let r=0;r<2;r++){for(let c=0;c<3;c++){
+   if(i<fotos.length){doc.addImage(fotos[i],'JPEG',x[c],y,60,38);} else {doc.setDrawColor(180); doc.rect(x[c],y,60,38); doc.setFontSize(7); doc.text('NO APLICA',x[c]+18,y+20);}
+   i++;} y+=42;}
  doc.addImage(qr,'PNG',10,y+5,32,32); doc.setFontSize(9); doc.text('ESCANEA PARA VALIDAR',50,y+15); doc.setFontSize(7); doc.text(qrUrl,50,y+22);
  let blob=doc.output('blob'); let b64=await new Promise(r=>{let fr=new FileReader(); fr.onload=()=>r(fr.result.split(',')[1]); fr.readAsDataURL(blob)});
  let repo='robertohernandez-design/siba'; let path='documentos/'+folioCompleto+'.pdf';
- let resp=await fetch(`https://api.github.com/repos/${repo}/contents/${path}`,{method:'PUT',headers:{Authorization:'token '+tok,'Content-Type':'application/json'},body:JSON.stringify({message:'Nuevo 056 22 limpio '+folioCompleto+' '+fotos.length+'fotos',content:b64})});
+ let resp=await fetch(`https://api.github.com/repos/${repo}/contents/${path}`,{method:'PUT',headers:{Authorization:'token '+tok,'Content-Type':'application/json'},body:JSON.stringify({message:'Nuevo 057 23 '+folioCompleto,content:b64})});
  log('PDF: '+resp.status);
  let f1=await fetch(`https://api.github.com/repos/${repo}/contents/folios.json`,{headers:{Authorization:'token '+tok}}); let d1=await f1.json(); let arr=JSON.parse(decodeURIComponent(escape(atob(d1.content))));
- arr=arr.filter(f=>!f.folio.includes('056')); arr.push({folio:folioBase,folio_completo:folioCompleto,hash:hash,hash_corto:hashCorto,fecha:fecha,timestamp:new Date().toISOString(),estacion:'ES0477',folio_interno:'056',actividad:actividad,fotos:fotos.length,pdf:path});
+ arr=arr.filter(f=>f.folio!==folioBase); arr.push({folio:folioBase,folio_completo:folioCompleto,hash:hash,hash_corto:hashCorto,fecha:fecha,timestamp:new Date().toISOString(),estacion:'ES0477',folio_interno:'057',actividad:actividad,fotos:fotos.length,pdf:path});
  let nuevo=btoa(unescape(encodeURIComponent(JSON.stringify(arr,null,2))));
- let up=await fetch(`https://api.github.com/repos/${repo}/contents/folios.json`,{method:'PUT',headers:{Authorization:'token '+tok,'Content-Type':'application/json'},body:JSON.stringify({message:'fix 056 nuevo limpio flex '+fotos.length+' fotos',content:nuevo,sha:d1.sha})});
- log('folios.json: '+up.status); if(up.ok){alert('✅ LISTO NUEVO 056 DEL 22\n'+folioCompleto+'\nFotos: '+fotos.length+'\n\nValidador:\n'+qrUrl); log('✅ VALIDA AHORA EN:\n'+qrUrl)}
- let viejo='documentos/ES0477-2026-09-22-056-783a99e567d5a16d49a63a.pdf'; let chk=await fetch(`https://api.github.com/repos/${repo}/contents/${viejo}`,{headers:{Authorization:'token '+tok}}); if(chk.ok){let jd=await chk.json(); await fetch(`https://api.github.com/repos/${repo}/contents/${viejo}`,{method:'DELETE',headers:{Authorization:'token '+tok,'Content-Type':'application/json'},body:JSON.stringify({message:'borra viejo 056',sha:jd.sha})}); log('Viejo 783a99 borrado');}
+ let up=await fetch(`https://api.github.com/repos/${repo}/contents/folios.json`,{method:'PUT',headers:{Authorization:'token '+tok,'Content-Type':'application/json'},body:JSON.stringify({message:'nuevo 057',content:nuevo,sha:d1.sha})});
+ log('folios.json: '+up.status); if(up.ok){alert('✅ LISTO 057 DEL 23\n'+folioCompleto+'\nFotos: '+fotos.length); log('✅ '+qrUrl)}
 };
 </script></body></html>
