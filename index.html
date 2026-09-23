@@ -95,9 +95,14 @@ async function regenerar(){
 }
 (async()=>{
  try{
-  const t=localStorage.getItem('gh_token'); if(!t)return;
-  const r=await fetch('https://api.github.com/repos/${repo='robertohernandez-design/siba'}/contents/folios.json',{headers:{Authorization:'token '+t}});
-  const j=await r.json(); const arr=JSON.parse(atob(j.content)); const target=arr[arr.length-1];
+  const repo='robertohernandez-design/siba';
+  const t=localStorage.getItem('gh_token'); 
+  if(!t){log('Pega token'); return;}
+  log('Leyendo folios.json...');
+  const r=await fetch(`https://api.github.com/repos/${repo}/contents/folios.json`,{headers:{Authorization:'token '+t}});
+  const j=await r.json(); 
+  const arr=JSON.parse(decodeURIComponent(escape(atob(j.content))));
+  const target=arr[arr.length-1];
   document.getElementById('folioBase').value=target.folio;
   document.getElementById('folioCompleto').value=target.folio_completo;
   document.getElementById('fechaOriginal').value=target.fecha;
@@ -107,6 +112,3 @@ async function regenerar(){
   quitarAcentos();
  }catch(e){log('Error: '+e.message);}
 })();
-</script>
-</body>
-</html>
