@@ -3,86 +3,78 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SIBA V26.3 - FIX 6 FOTOS</title>
+<title>SIBA V26.4 DEBUG</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
-body{font-family:Arial;padding:12px;background:#f5f5f5}
-.card{background:white;padding:12px;border-radius:10px;margin-bottom:10px}
-input,textarea,button{width:100%;padding:10px;margin:5px 0}
-button{background:#0a7a3c;color:white;border:none;border-radius:6px;font-weight:bold}
-button:disabled{background:#aaa}
-#preview img{width:32%;margin:1%;border:1px solid #ccc}
-#log{background:#111;color:#0f0;padding:10px;font-size:11px;max-height:200px;overflow:auto}
+body{font-family:Arial;padding:10px;background:#f5f5f5}
+.card{background:white;padding:10px;border-radius:8px;margin-bottom:10px}
+button{width:100%;padding:12px;background:#0a7a3c;color:white;border:none;border-radius:6px;font-weight:bold}
+#log{background:#111;color:#0f0;padding:10px;font-size:12px;min-height:100px;white-space:pre-wrap}
+#preview img{width:30%;margin:1%}
 </style>
 </head>
 <body>
-<h3>SIBA V26.3 - FIX BOTON GENERAR</h3>
-<div class="card">
-<input id="token" placeholder="ghp_xxx" type="password">
-<button onclick="localStorage.setItem('gh_token',document.getElementById('token').value);alert('Guardado')">Guardar Token</button>
-Folio: <b id="folio">...</b> | Fotos: <b id="estadoFotos">0/6</b>
+<h3>SIBA V26.4 DEBUG</h3>
+<div id="log">LOG INICIANDO...
 </div>
 <div class="card">
-<textarea id="actividad" rows="10" placeholder="Pega actividad"></textarea>
+Token: <input id="token" type="password" placeholder="ghp_...">
+<button onclick="localStorage.setItem('gh_token',document.getElementById('token').value);alert('Guardado');location.reload()">Guardar Token y Recargar</button>
+Folio: <b id="folio">Cargando...</b> Fotos: <b id="estado">0/6</b>
+</div>
+<div class="card">
+<textarea id="actividad" rows="8">REVISION DE COMPRESOR
+REVISION MENSUAL EXTINTORES
+PRUEBA PAROS
+BOMBA SUMERGIBLE
+SENALAMIENTO
+PISOS CARGA</textarea>
 <input type="file" id="fotos" multiple accept="image/*">
 <div id="preview"></div>
-<button id="btnGen" disabled>🔒 GENERAR FOLIO 56 (espera 6 fotos)</button>
+<button id="btnGen" onclick="generar()">GENERAR FOLIO 56</button>
 </div>
-<div id="log">LOG:</div>
 <script>
-let fotosBase64=[]; let folioInterno="056";
-function log(t){const l=document.getElementById('log'); l.innerHTML+='<br>'+t; console.log(t);}
-async function cargarFotos(files){
- fotosBase64=[]; document.getElementById('preview').innerHTML='';
+function log(t){document.getElementById('log').textContent+='\n'+new Date().toLocaleTimeString()+' '+t;}
+log('JS cargado OK');
+let fotos=[];
+document.getElementById('fotos').addEventListener('change', async (e)=>{
+ fotos=[]; document.getElementById('preview').innerHTML='';
+ const files=e.target.files; log('Seleccionaste '+files.length);
  for(let i=0;i<files.length;i++){
-  const data=await new Promise(res=>{const r=new FileReader(); r.onload=e=>res(e.target.result); r.readAsDataURL(files[i]);});
-  fotosBase64.push(data);
-  document.getElementById('estadoFotos').innerText=(i+1)+'/'+files.length;
-  const img=document.createElement('img'); img.src=data; document.getElementById('preview').appendChild(img);
-  log('Foto '+(i+1)+' cargada');
+  const b64=await new Promise(r=>{const fr=new FileReader(); fr.onload=e=>r(e.target.result); fr.readAsDataURL(files[i]);});
+  fotos.push(b64);
  }
- if(fotosBase64.length===6){document.getElementById('btnGen').disabled=false; document.getElementById('btnGen').innerText='🔒 GENERAR FOLIO '+folioInterno+' (6/6 LISTO)';}
- else{log('ERROR necesitas 6 exactas');}
-}
-document.getElementById('fotos').addEventListener('change', e=>cargarFotos(e.target.files));
-function getFolioBase(){const h=new Date(); return `ES0477-${h.getFullYear()}-${String(h.getMonth()+1).padStart(2,'0')}-${String(h.getDate()).padStart(2,'0')}-${folioInterno}`;}
-async function sha256(s){const b=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');}
-async function generarPDF(){
+ document.getElementById('estado').innerText=fotos.length+'/6';
+ log('Fotos en memoria: '+fotos.length);
+});
+let folioInterno='056';
+async function sha256(s){const buf=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');}
+async function generar(){
  try{
-  log('Iniciando...'); if(fotosBase64.length!==6){alert('Faltan fotos: '+fotosBase64.length+'/6');return;}
-  const token=document.getElementById('token').value||localStorage.getItem('gh_token'); if(!token){alert('Falta token');return;}
-  const actividad=document.getElementById('actividad').value.trim(); if(!actividad){alert('Falta actividad');return;}
-  document.getElementById('btnGen').disabled=true; document.getElementById('btnGen').innerText='Generando...';
-  const actividadNorm=actividad.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
-  const fecha=new Date().toLocaleString('es-MX'); const folioBase=getFolioBase();
-  const hashCompleto=await sha256(folioBase+actividadNorm+fecha); const hashCorto=hashCompleto.substring(0,24); const folioCompleto=`${folioBase}-${hashCorto}`;
-  log('Folio: '+folioCompleto);
-  const {jsPDF}=window.jspdf; const doc=new jsPDF();
-  doc.setFontSize(11); doc.text('SIBA - '+folioBase,10,12); doc.setFontSize(8); doc.text('Folio: '+folioCompleto,10,18); doc.text('Fecha: '+fecha,10,23);
-  doc.setFontSize(7); let y=30; actividad.split('\n').forEach(l=>{doc.text(doc.splitTextToSize(l,190),10,y); y+=5*doc.splitTextToSize(l,190).length;});
-  let yFoto=y+3; const xPos=[10,75,140]; let idx=0;
-  for(let r=0;r<2;r++){for(let c=0;c<3;c++){if(idx<6){doc.addImage(fotosBase64[idx],'JPEG',xPos[c],yFoto,60,38);} idx++;} yFoto+=42;}
-  let finalY=yFoto+8; if(finalY>225){doc.addPage(); finalY=15;}
-  const qrUrl=`https://robertohernandez-design.github.io/siba/validador.html?v=${folioCompleto}`;
-  const qrCanvas=document.createElement('canvas'); await QRCode.toCanvas(qrCanvas,qrUrl,{width:220}); const qrData=qrCanvas.toDataURL();
-  doc.text(qrUrl,10,finalY); doc.addImage(qrData,'PNG',10,finalY+2,32,32);
-  doc.text('Original - '+hashCompleto.substring(0,32),10,285);
-  const pdfBlob=doc.output('blob'); const arr=await pdfBlob.arrayBuffer(); const b64=btoa(String.fromCharCode(...new Uint8Array(arr)));
-  log('Subiendo...');
-  const repo='robertohernandez-design/siba'; const pathDoc=`documentos/${folioCompleto}.pdf`;
-  let sha=null; try{const r=await fetch(`https://api.github.com/repos/${repo}/contents/${pathDoc}`,{headers:{Authorization:'token '+token}}); if(r.ok){sha=(await r.json()).sha;}}catch(e){}
-  const up=await fetch(`https://api.github.com/repos/${repo}/contents/${pathDoc}`,{method:'PUT',headers:{Authorization:'token '+token,'Content-Type':'application/json'},body:JSON.stringify({message:'Add '+pathDoc,content:b64,sha:sha})});
-  if(!up.ok) throw new Error('PDF: '+(await up.text()));
-  log('PDF OK'); const fr=await fetch(`https://api.github.com/repos/${repo}/contents/folios.json`,{headers:{Authorization:'token '+token}}); const fd=await fr.json(); const fc=JSON.parse(atob(fd.content));
-  fc.push({folio:folioBase,folio_completo:folioCompleto,hash:hashCompleto,hash_corto:hashCorto,fecha:fecha,timestamp:new Date().toISOString(),estacion:'ES0477',folio_interno:folioInterno,actividad:actividad,observaciones:actividad,fotos:6,pdf:pathDoc});
+  log('Click generar');
+  const token=document.getElementById('token').value||localStorage.getItem('gh_token');
+  log('Token: '+(token?'SI':'NO')); if(!token){alert('Falta token');return;}
+  if(fotos.length!==6){alert('Tienes '+fotos.length+'/6');return;}
+  const actividad=document.getElementById('actividad').value;
+  log('Generando PDF...'); const {jsPDF}=window.jspdf; const doc=new jsPDF();
+  doc.text('PRUEBA SIBA 056',10,10); doc.text(actividad.substring(0,100),10,20);
+  let y=30; for(let i=0;i<6;i++){try{doc.addImage(fotos[i],'JPEG',10+(i%3)*65,y+Math.floor(i/3)*45,60,40);}catch(e){log('Error foto '+i);}}
+  const fecha=new Date().toLocaleString('es-MX'); const folioBase='ES0477-2026-09-23-056'; const hash=await sha256(folioBase+actividad+fecha); const folioCompleto=folioBase+'-'+hash.substring(0,24);
+  doc.text(folioCompleto,10,130); const blob=doc.output('blob'); log('PDF tam: '+blob.size);
+  const b64=await new Promise(r=>{const fr=new FileReader(); fr.onload=()=>r(fr.result.split(',')[1]); fr.readAsDataURL(blob);});
+  const repo='robertohernandez-design/siba'; const path='documentos/'+folioCompleto+'.pdf';
+  const res=await fetch('https://api.github.com/repos/'+repo+'/contents/'+path,{method:'PUT',headers:{Authorization:'token '+token,'Content-Type':'application/json'},body:JSON.stringify({message:'Add '+path,content:b64})});
+  log('Subida PDF status: '+res.status);
+  if(!res.ok){log(await res.text());return;}
+  log('PDF OK, actualizando folios.json');
+  const fr2=await fetch('https://api.github.com/repos/'+repo+'/contents/folios.json',{headers:{Authorization:'token '+token}}); const fd=await fr2.json(); const fc=JSON.parse(atob(fd.content));
+  fc.push({folio:folioBase,folio_completo:folioCompleto,hash:hash,hash_corto:hash.substring(0,24),fecha:fecha,timestamp:new Date().toISOString(),estacion:'ES0477',folio_interno:'056',actividad:actividad,observaciones:actividad,fotos:6,pdf:path});
   const nuevo=btoa(unescape(encodeURIComponent(JSON.stringify(fc,null,2))));
-  const up2=await fetch(`https://api.github.com/repos/${repo}/contents/folios.json`,{method:'PUT',headers:{Authorization:'token '+token,'Content-Type':'application/json'},body:JSON.stringify({message:'Add '+folioCompleto,content:nuevo,sha:fd.sha})});
-  if(!up2.ok) throw new Error('folios.json: '+(await up2.text()));
-  log('✅ '+folioCompleto); alert('GENERADO '+folioCompleto);
- }catch(err){log('❌ '+err.message); alert(err.message); document.getElementById('btnGen').disabled=false;}
+  const res2=await fetch('https://api.github.com/repos/'+repo+'/contents/folios.json',{method:'PUT',headers:{Authorization:'token '+token,'Content-Type':'application/json'},body:JSON.stringify({message:'Add '+folioCompleto,content:nuevo,sha:fd.sha})});
+  log('folios.json status: '+res2.status); if(res2.ok){log('✅ OK '+folioCompleto); alert('OK '+folioCompleto);} else {log(await res2.text());}
+ }catch(err){log('❌ '+err.message); alert(err.message);}
 }
-(function(){document.getElementById('token').value=localStorage.getItem('gh_token')||''; (async()=>{try{const t=localStorage.getItem('gh_token'); if(!t) return; const r=await fetch('https://api.github.com/repos/robertohernandez-design/siba/contents/folios.json',{headers:{Authorization:'token '+t}}); const j=await r.json(); const arr=JSON.parse(atob(j.content)); const last=arr[arr.length-1]; if(last){folioInterno=String(parseInt(last.folio_interno)+1).padStart(3,'0'); document.getElementById('folio').innerText=folioInterno;}}catch(e){}})();})();
+(function(){document.getElementById('token').value=localStorage.getItem('gh_token')||'';})();
 </script>
 </body>
 </html>
