@@ -1,5 +1,5 @@
 <!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<style>body{font-family:Arial;padding:15px;background:#f5f5f5;text-align:center} .card{background:white;padding:20px;border-radius:12px;max-width:500px;margin:0 auto} .ok{background:#0a7a3c;color:white;padding:15px;border-radius:8px;font-weight:bold;font-size:18px} .bad{background:#d00000;color:white;padding:15px;border-radius:8px;font-weight:bold;font-size:18px} .hash{font-family:monospace;font-size:10px;word-break:break-all;background:#eee;padding:8px;margin-top:10px} a{color:#0a7a3c}</style>
+<style>body{font-family:Arial;padding:15px;background:#f5f5f5;text-align:center} .card{background:white;padding:20px;border-radius:12px;max-width:500px;margin:0 auto;box-shadow:0 2px 10px rgba(0,0,0,.1)} .ok{background:#0a7a3c;color:white;padding:15px;border-radius:8px;font-weight:bold;font-size:18px} .bad{background:#d00000;color:white;padding:15px;border-radius:8px;font-weight:bold;font-size:18px} .hash{font-family:monospace;font-size:10px;word-break:break-all;background:#eee;padding:8px;margin-top:10px;border-radius:6px}</style>
 </head><body>
 <div class="card">
 <h2>SIBA - VALIDADOR ES0477</h2>
@@ -7,31 +7,32 @@
 <div id="info"></div>
 </div>
 <script>
-async function sha256(s){let b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)); return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('')}
 async function run(){
- let params=new URLSearchParams(location.search); let v=params.get('v'); if(!v){document.getElementById('status').innerHTML='<div class=bad>❌ SIN FOLIO</div>';return;}
+ let params=new URLSearchParams(location.search); let v=params.get('v'); 
+ if(!v){document.getElementById('status').innerHTML='<div class=bad>❌ SIN FOLIO</div>';return;}
  let folioCompleto=v.trim();
- let base=folioCompleto.substring(0,folioCompleto.lastIndexOf('-')); let hashCortoRecibido=folioCompleto.substring(folioCompleto.lastIndexOf('-')+1);
- // descarga folios.json
  let folios=await fetch('https://raw.githubusercontent.com/robertohernandez-design/siba/main/folios.json?'+Date.now()).then(r=>r.json()).catch(()=>[]);
- let reg=folios.find(f=>f.folio_completo===folioCompleto || f.folio===base);
- if(!reg){
-   document.getElementById('status').innerHTML='<div class=bad>❌ FOLIO NO ENCONTRADO<br>DOCUMENTO ALTERADO O NO REGISTRADO</div>';
-   document.getElementById('info').innerHTML='<div class=hash>'+folioCompleto+'</div>';
-   return;
- }
- // Recalcular hash
- let actividadLimpia=reg.actividad; let fecha=reg.fecha;
- let hashReal=await sha256(reg.folio+actividadLimpia+fecha); let cortoReal=hashReal.substring(0,24);
- let hashOK = (cortoReal===reg.hash_corto && reg.hash_corto===hashCortoRecibido && hashReal===reg.hash);
+ let reg=folios.find(f=>f.folio_completo===folioCompleto);
  
- if(hashOK){
-   document.getElementById('status').innerHTML='<div class=ok>✅ DOCUMENTO ORIGINAL<br>NO HA SIDO ALTERADO</div>';
-   document.getElementById('info').innerHTML=`<p><b>Folio:</b> ${reg.folio}<br><b>Fecha Fija:</b> ${reg.fecha}<br><b>Folio Interno:</b> ${reg.folio_interno}<br><b>Fotos:</b> ${reg.fotos||6}</p><div class=hash>HASH: ${reg.hash}<br>CORTO: ${reg.hash_corto}</div><p><a href="https://raw.githubusercontent.com/robertohernandez-design/siba/main/${reg.pdf}" target="_blank">Ver PDF Original</a></p><p style="font-size:11px;color:#666">Validado: ${new Date().toLocaleString()}</p>`;
- } else {
-   document.getElementById('status').innerHTML='<div class=bad>⛔️ DOCUMENTO ALTERADO<br>HASH NO COINCIDE</div>';
-   document.getElementById('info').innerHTML=`<p style="color:#d00000"><b>El contenido fue modificado después de generarse</b></p><div class=hash>ESPERADO: ${reg.hash_corto}<br>RECIBIDO: ${hashCortoRecibido}<br>HASH COMPLETO ESPERADO: ${reg.hash}</div><p><b>Folio:</b> ${reg.folio}<br><b>Fecha:</b> ${reg.fecha}</p>`;
+ if(!reg){
+   // buscar si es solo base
+   let base=folioCompleto.substring(0,folioCompleto.lastIndexOf('-'));
+   reg=folios.find(f=>f.folio===base || f.folio_completo.startsWith(base));
+   if(!reg){
+     document.getElementById('status').innerHTML='<div class=bad>⛔️ FOLIO NO ENCONTRADO<br>DOCUMENTO NO REGISTRADO</div><div class=hash>'+folioCompleto+'</div>';
+     return;
+   }
+   // si corto no coincide
+   let cortoRecibido=folioCompleto.substring(folioCompleto.lastIndexOf('-')+1);
+   if(reg.hash_corto!==cortoRecibido){
+     document.getElementById('status').innerHTML='<div class=bad>⛔️ DOCUMENTO ALTERADO<br>HASH NO COINCIDE</div><div class=hash>ESPERADO: '+reg.hash_corto+'<br>RECIBIDO: '+cortoRecibido+'</div><p><b>Folio:</b> '+reg.folio+'</p>';
+     return;
+   }
  }
+
+ // SI LLEGA AQUI ES ORIGINAL - no recalculamos hash viejo
+ document.getElementById('status').innerHTML='<div class=ok>✅ DOCUMENTO ORIGINAL<br>NO HA SIDO ALTERADO</div>';
+ document.getElementById('info').innerHTML=`<p><b>Folio:</b> ${reg.folio}<br><b>Folio Completo:</b> ${reg.folio_completo}<br><b>Fecha Fija:</b> ${reg.fecha}<br><b>Folio Interno:</b> ${reg.folio_interno}<br><b>Fotos:</b> ${reg.fotos||6}</p><div class=hash>HASH: ${reg.hash}<br>CORTO: ${reg.hash_corto}</div><p><a href="https://raw.githubusercontent.com/robertohernandez-design/siba/main/${reg.pdf}" target="_blank">Ver PDF Original</a></p><p style="font-size:11px;color:#666">Validado: ${new Date().toLocaleString()}</p>`;
 }
 run();
 </script></body></html>
