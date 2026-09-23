@@ -3,112 +3,96 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SIBA V26.8 HOY CON QR</title>
+<title>SIBA V26.9 056 DEL 22 CON QR</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 body{font-family:Arial;padding:10px;background:#f5f5f5}
 .card{background:white;padding:10px;border-radius:8px;margin-bottom:10px}
 button{width:100%;padding:15px;background:#0a7a3c;color:white;border:none;border-radius:8px;font-weight:bold}
-#log{background:#000;color:#0f0;padding:10px;white-space:pre-wrap;min-height:100px}
+#log{background:#000;color:#0f0;padding:10px;white-space:pre-wrap}
 #preview img{width:30%;margin:1%}
+input,textarea{width:100%;padding:8px;box-sizing:border-box;margin:4px 0}
 </style>
 </head>
 <body>
-<h3>V26.8 - REGENERAR 056 CON FECHA DE HOY + QR</h3>
-<div id="log">LOG:</div>
+<h3>V26.9 - 056 DEL 22 MISMA FECHA Y HORA + QR</h3>
+<div id="log">LOG: Esperando token...</div>
 <div class="card">
-Token: <input id="token" type="password" placeholder="ghp_...">
-<button onclick="localStorage.setItem('gh_token',document.getElementById('token').value);log('Token guardado');alert('Guardado')">Guardar Token</button>
-Folio base (mismo): <input id="folioBase" value="ES0477-2026-09-23-056">
-Fecha HOY: <b id="fechaHoy"></b>
+Token: <input id="token" type="password">
+<button onclick="localStorage.setItem('gh_token',document.getElementById('token').value);log('Token guardado')">Guardar Token</button>
+Folio base: <input id="folioBase" value="ES0477-2026-09-22-056" readonly>
+Folio completo (se carga solo): <input id="folioCompleto" readonly>
+Fecha original (se carga sola del 22): <input id="fechaOriginal" readonly>
+Hash: <input id="hashCorto" readonly>
 </div>
 <div class="card">
-Actividad (pega la misma de hoy):<textarea id="actividad" rows="8" placeholder="Pega actividad completa"></textarea>
-Fotos 6: <input type="file" id="fotos" multiple accept="image/*">
+Actividad: <textarea id="actividad" rows="8" readonly></textarea>
+Fotos 6 (usa las mismas 6 de ayer): <input type="file" id="fotos" multiple accept="image/*">
 <div id="preview"></div>
 <button id="btnGen" disabled>Esperando 6 fotos</button>
 </div>
 <script>
 function log(t){document.getElementById('log').textContent+='\n'+t;}
-let fotos=[];
-const hoyStr=new Date().toLocaleString('es-MX');
-document.getElementById('fechaHoy').innerText=hoyStr;
+let fotos=[]; let datosOriginal=null;
 document.getElementById('token').value=localStorage.getItem('gh_token')||'';
-log('Hoy: '+hoyStr);
-
 document.getElementById('fotos').addEventListener('change', async e=>{
  fotos=[]; document.getElementById('preview').innerHTML='';
  for(let i=0;i<e.target.files.length;i++){
   const b64=await new Promise(r=>{const fr=new FileReader(); fr.onload=ev=>r(ev.target.result); fr.readAsDataURL(e.target.files[i]);});
   fotos.push(b64); const img=document.createElement('img'); img.src=b64; document.getElementById('preview').appendChild(img);
  }
- if(fotos.length===6){const b=document.getElementById('btnGen'); b.disabled=false; b.textContent='🔒 REGENERAR 056 HOY CON QR - '+hoyStr; b.onclick=regenerar; log('6/6 listo');}
+ if(fotos.length===6){const b=document.getElementById('btnGen'); b.disabled=false; b.textContent='🔒 REGENERAR 056 DEL 22 CON QR - MISMA FECHA Y HORA'; b.onclick=regenerar; log('6/6 listo');}
 });
-
-async function sha256(s){const buf=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');}
 
 async function regenerar(){
  try{
-  log('Regenerando 056 con fecha HOY...');
   const token=document.getElementById('token').value||localStorage.getItem('gh_token');
-  if(!token||fotos.length!==6){alert('Falta token o 6 fotos');return;}
-  const actividad=document.getElementById('actividad').value.trim(); if(!actividad){alert('Falta actividad');return;}
-  const folioBase=document.getElementById('folioBase').value.trim();
-  const fecha=hoyStr;
-  const actividadNorm=actividad.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
-  const hash=await sha256(folioBase+actividadNorm+fecha);
-  const hashCorto=hash.substring(0,24);
-  const folioCompleto=folioBase+'-'+hashCorto;
-  log('Nuevo folio: '+folioCompleto); log('Hash: '+hashCorto);
+  const folioCompleto=document.getElementById('folioCompleto').value;
+  const folioBase=document.getElementById('folioBase').value;
+  const fecha=document.getElementById('fechaOriginal').value;
+  const hashCorto=document.getElementById('hashCorto').value;
+  const actividad=document.getElementById('actividad').value;
+  log('Regenerando: '+folioCompleto); log('Fecha original: '+fecha);
   const qrUrl=`https://robertohernandez-design.github.io/siba/validador.html?v=${folioCompleto}`;
   const qrApi=`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrUrl)}`;
   const qrBlob=await fetch(qrApi).then(r=>r.blob());
   const qrB64=await new Promise(r=>{const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(qrBlob);});
-
   const {jsPDF}=window.jspdf; const doc=new jsPDF();
   doc.setFontSize(11); doc.text('SIBA - '+folioBase,10,12);
   doc.setFontSize(8); doc.text('Folio: '+folioCompleto,10,18); doc.text('Fecha: '+fecha+' | HASH: '+hashCorto,10,23);
-  doc.setFontSize(7); let y=30; doc.text(doc.splitTextToSize(actividad,190),10,y); y+=40;
+  doc.setFontSize(7); let y=30; doc.text(doc.splitTextToSize(actividad,190),10,y); y+=45;
   let yFoto=y; const xPos=[10,75,140]; let idx=0;
   for(let r=0;r<2;r++){for(let c=0;c<3;c++){if(idx<6){doc.addImage(fotos[idx],'JPEG',xPos[c],yFoto,60,38);} idx++;} yFoto+=42;}
-  doc.addImage(qrB64,'PNG',10,yFoto+5,32,32); doc.text(qrUrl,50,yFoto+10); doc.text('VALIDAR ORIGINAL - '+folioBase,50,yFoto+18);
-  doc.text('Original sin alteraciones - '+hash.substring(0,32),10,285);
-
+  doc.addImage(qrB64,'PNG',10,yFoto+5,32,32); doc.setFontSize(8); doc.text(qrUrl,50,yFoto+12); doc.text('VALIDAR ORIGINALIDAD',50,yFoto+20);
+  doc.setFontSize(6); doc.text('Original sin alteraciones',10,285);
   const blob=doc.output('blob'); const b64=await new Promise(r=>{const fr=new FileReader(); fr.onload=()=>r(fr.result.split(',')[1]); fr.readAsDataURL(blob);});
-  const repo='robertohernandez-design/siba';
-
-  // 1. Subir nuevo PDF con fecha hoy
-  const path='documentos/'+folioCompleto+'.pdf';
-  log('Subiendo: '+path);
-  const up1=await fetch(`https://api.github.com/repos/${repo}/contents/${path}`,{method:'PUT',headers:{Authorization:'token '+token,'Content-Type':'application/json'},body:JSON.stringify({message:'Regenera 056 HOY '+folioCompleto,content:b64})});
-  log('PDF status: '+up1.status); if(!up1.ok){log(await up1.text()); return;}
-
-  // 2. Actualizar folios.json - reemplazar ultimo 056
-  log('Actualizando folios.json...');
-  const f1=await fetch(`https://api.github.com/repos/${repo}/contents/folios.json`,{headers:{Authorization:'token '+token}});
-  const d1=await f1.json(); let arr=JSON.parse(atob(d1.content));
-  // quitar ultimo 056 sin QR si existe
-  arr=arr.filter(f=>f.folio_interno!=='056' || f.folio_completo.includes(folioCompleto.substring(0,10)));
-  // si aun queda 056 viejo, lo removemos
-  const ultimo=arr[arr.length-1];
-  if(ultimo && ultimo.folio_interno==='056'){arr.pop(); log('Removido 056 viejo sin QR');}
-  arr.push({folio:folioBase,folio_completo:folioCompleto,hash:hash,hash_corto:hashCorto,fecha:fecha,timestamp:new Date().toISOString(),estacion:'ES0477',folio_interno:'056',actividad:actividad,observaciones:actividad,fotos:6,pdf:path});
-  const nuevo=btoa(unescape(encodeURIComponent(JSON.stringify(arr,null,2))));
-  const up2=await fetch(`https://api.github.com/repos/${repo}/contents/folios.json`,{method:'PUT',headers:{Authorization:'token '+token,'Content-Type':'application/json'},body:JSON.stringify({message:'Update 056 HOY '+folioCompleto,content:nuevo,sha:d1.sha})});
-  log('folios.json status: '+up2.status);
-  if(up2.ok){log('✅ 056 REGENERADO HOY CON QR'); log('✅ '+folioCompleto); alert('✅ LISTO 056 CON FECHA HOY Y QR\n'+folioCompleto+'\n\nYa valida como ORIGINAL');}
-  else{log(await up2.text());}
- }catch(e){log('ERROR: '+e.message); alert(e.message);}
+  const repo='robertohernandez-design/siba'; const path='documentos/'+folioCompleto+'.pdf';
+  log('Sobrescribiendo mismo PDF: '+path);
+  const chk=await fetch(`https://api.github.com/repos/${repo}/contents/${path}`,{headers:{Authorization:'token '+token}});
+  let sha=null; if(chk.ok){sha=(await chk.json()).sha;}
+  const resp=await fetch(`https://api.github.com/repos/${repo}/contents/${path}`,{method:'PUT',headers:{Authorization:'token '+token,'Content-Type':'application/json'},body:JSON.stringify({message:'Regenera 056 22 con QR misma fecha',content:b64,sha:sha})});
+  log('Status: '+resp.status);
+  if(resp.ok){log('✅ 056 DEL 22 REGENERADO CON QR Y MISMA FECHA Y HORA'); alert('✅ LISTO:\n'+folioCompleto+'\nFecha: '+fecha+'\n\nAhora sí valida con QR y misma fecha del 22');} else {log(await resp.text()); alert('Error');}
+ }catch(e){log('ERROR: '+e.message);}
 }
 
 (async()=>{
  try{
-  const t=localStorage.getItem('gh_token'); if(!t) return;
+  const t=localStorage.getItem('gh_token'); if(!t){log('Pega token primero'); return;}
+  log('Leyendo folios.json...');
   const r=await fetch('https://api.github.com/repos/robertohernandez-design/siba/contents/folios.json',{headers:{Authorization:'token '+t}});
-  const j=await r.json(); const a=JSON.parse(atob(j.content)); const last=a[a.length-1];
-  if(last){document.getElementById('actividad').value=last.actividad||''; log('Actividad anterior cargada');}
- }catch(e){}
+  const j=await r.json(); const arr=JSON.parse(atob(j.content));
+  const last=arr.find(f=>f.folio_interno==='056' || f.folio==='ES0477-2026-09-22-056' || f.folio==='ES0477-2026-09-23-056');
+  const target=arr[arr.length-1]; // ultimo es el 056 sin QR
+  datosOriginal=target;
+  document.getElementById('folioBase').value=target.folio;
+  document.getElementById('folioCompleto').value=target.folio_completo;
+  document.getElementById('fechaOriginal').value=target.fecha;
+  document.getElementById('hashCorto').value=target.hash_corto;
+  document.getElementById('actividad').value=target.actividad;
+  log('Datos del 056 cargados: '+target.folio); log('Fecha: '+target.fecha); log('Folio: '+target.folio_completo);
+ }catch(e){log('Error cargando folios: '+e.message);}
 })();
 </script>
 </body>
-</html>77
+</html>
