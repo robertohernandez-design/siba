@@ -1,14 +1,20 @@
 <!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>SIBA VALIDADOR</title>
-<style>body{font-family:Arial;padding:15px;background:#f5f5f5;text-align:center} .card{background:white;padding:22px;border-radius:14px;max-width:520px;margin:0 auto;box-shadow:0 3px 12px rgba(0,0,0,.15)} .ok{background:#0a7a3c;color:white;padding:16px;border-radius:10px;font-weight:bold;font-size:19px;line-height:1.3} .bad{background:#d00000;color:white;padding:16px;border-radius:10px;font-weight:bold;font-size:19px;line-height:1.3} .hash{font-family:monospace;font-size:10px;word-break:break-all;background:#eee;padding:10px;border-radius:8px;margin-top:12px} .info{font-size:13px;text-align:left;margin-top:14px}</style>
+<style>body{font-family:Arial;padding:12px;background:#eef2f7;text-align:center} .card{background:white;padding:18px;border-radius:14px;max-width:560px;margin:0 auto;box-shadow:0 3px 14px rgba(0,0,0,.18)} .ok{background:#0a7a3c;color:white;padding:16px;border-radius:10px;font-weight:bold;font-size:18px} .bad{background:#d00000;color:white;padding:16px;border-radius:10px;font-weight:bold;font-size:18px} .box{text-align:left;background:#f8f9fa;border:1px solid #ddd;border-left:5px solid #0a7a3c;padding:12px;border-radius:8px;margin-top:14px;font-size:13px;white-space:pre-wrap} .box.badbox{border-left-color:#d00000;background:#fff5f5} .hash{font-family:monospace;font-size:10px;word-break:break-all;background:#eee;padding:10px;border-radius:8px;margin-top:10px} .label{font-size:11px;color:#666;font-weight:bold;margin-top:12px;text-align:left}</style>
 </head><body>
 <div class="card">
-<h2 style="margin:0 0 12px">SIBA - VALIDADOR ES0477</h2>
+<h2 style="margin:0 0 10px">SIBA - VALIDADOR ES0477</h2>
 <div id="status">Validando...</div>
-<div id="info"></div>
+<div id="content" style="display:none">
+<div class="label">TEXTO ORIGINAL REGISTRADO EN GITHUB (si tu PDF no dice esto, fue ALTERADO):</div>
+<div id="actividadBox" class="box"></div>
+<div id="infoBox" style="text-align:left;font-size:13px;margin-top:12px"></div>
+<div id="hashBox" class="hash"></div>
+<p style="font-size:11px;color:#888">Validado: <span id="fechaVal"></span></p>
+</div>
 </div>
 <script>
-async function sha256(s){let b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)); return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('')}
+async function sha256(s){let b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('')}
 
 async function run(){
  let v=new URLSearchParams(location.search).get('v');
@@ -22,41 +28,35 @@ async function run(){
     let corto=v.substring(v.lastIndexOf('-')+1);
     reg=folios.find(f=>f.folio===base);
     if(!reg){
-      document.getElementById('status').innerHTML='<div class=bad>⛔️ FOLIO NO ENCONTRADO<br><span style="font-size:13px">DOCUMENTO NO REGISTRADO - POSIBLE ALTERACIÓN</span></div><div class=hash>'+v+'</div>';
+      document.getElementById('status').innerHTML='<div class=bad>⛔️ FOLIO NO ENCONTRADO<br><span style="font-size:13px">POSIBLE FALSIFICACIÓN</span></div><div class=hash>'+v+'</div>';
       return;
     }
-    // si el corto del QR no es el guardado -> alterado
     if(reg.hash_corto!==corto){
-      document.getElementById('status').innerHTML='<div class=bad>⛔️ DOCUMENTO ALTERADO<br><span style="font-size:13px">HASH NO COINCIDE</span></div><div class=hash>ESPERADO: '+reg.hash_corto+'<br>RECIBIDO: '+corto+'</div>';
+      document.getElementById('status').innerHTML='<div class=bad>⛔️ DOCUMENTO ALTERADO<br> HASH NO COINCIDE</div><div class=hash>ESPERADO: '+reg.hash_corto+'<br>RECIBIDO: '+corto+'</div>';
       return;
     }
   }
 
-  // HIBRIDO: 055 y anteriores = modo compatibilidad (siempre verde si existe)
-  let numFolio = parseInt((reg.folio_interno||reg.folio||'0').toString().replace(/\D/g,'')) || 0;
-  let esFolioViejo = numFolio <= 55 || reg.folio.includes('-055');
-
-  if(esFolioViejo){
-    document.getElementById('status').innerHTML='<div class=ok>✅ DOCUMENTO ORIGINAL<br><span style="font-size:14px;font-weight:normal">NO HA SIDO ALTERADO (055 - COMPATIBILIDAD)</span></div>';
-  } else {
-    // 056 en adelante = modo estricto, recalcula HASH
-    let actividad = reg.actividad || '';
-    let fecha = reg.fecha || '';
-    let hashRecalc = await sha256(reg.folio + actividad + fecha);
-    let cortoRecalc = hashRecalc.substring(0,24);
-    if(hashRecalc===reg.hash && cortoRecalc===reg.hash_corto){
-      document.getElementById('status').innerHTML='<div class=ok>✅ DOCUMENTO ORIGINAL<br><span style="font-size:14px;font-weight:normal">NO HA SIDO ALTERADO - HASH VERIFICADO</span></div>';
-    }else{
-      document.getElementById('status').innerHTML='<div class=bad>⛔️ DOCUMENTO ALTERADO<br><span style="font-size:13px">EL CONTENIDO FUE MODIFICADO</span></div><div class=hash>ESPERADO: '+reg.hash+'<br>RECALCULADO: '+hashRecalc+'</div>';
-      document.getElementById('info').innerHTML='<p style="color:#d00000"><b>Actividad o fecha modificada en folios.json</b></p>';
+  let numFolio = parseInt((reg.folio_interno||'0').toString().replace(/\D/g,''))||0;
+  let esViejo = numFolio<=55 || (reg.folio||'').includes('-055');
+  
+  if(!esViejo){
+    let h=await sha256(reg.folio + (reg.actividad||'') + (reg.fecha||''));
+    if(h!==reg.hash){
+      document.getElementById('status').innerHTML='<div class=bad>⛔️ DOCUMENTO ALTERADO<br><span style="font-size:13px">ACTIVIDAD O FECHA MODIFICADA EN GITHUB</span></div><div class=hash>ESPERADO: '+reg.hash+'<br>RECALCULADO: '+h+'</div>';
       return;
     }
   }
 
-  document.getElementById('info').innerHTML='<div class=info><b>Folio:</b> '+reg.folio+'<br><b>Completo:</b> '+reg.folio_completo+'<br><b>Fecha fija:</b> '+reg.fecha+'<br><b>Interno:</b> '+reg.folio_interno+'<br><b>Fotos:</b> '+(reg.fotos||6)+'</div><div class=hash>HASH: '+reg.hash+'<br>CORTO: '+reg.hash_corto+'</div><p><a href="https://raw.githubusercontent.com/robertohernandez-design/siba/main/'+reg.pdf+'" target="_blank">Ver PDF Original</a></p><p style="font-size:11px;color:#888">Validado: '+new Date().toLocaleString()+'</p>';
+  document.getElementById('status').innerHTML='<div class=ok>✅ DOCUMENTO ORIGINAL<br><span style="font-size:14px;font-weight:normal">NO HA SIDO ALTERADO</span></div>';
+  document.getElementById('content').style.display='block';
+  document.getElementById('actividadBox').textContent = reg.actividad || '(sin actividad registrada)';
+  document.getElementById('infoBox').innerHTML = '<b>Folio:</b> '+reg.folio+'<br><b>Completo:</b> '+reg.folio_completo+'<br><b>Fecha oficial:</b> '+reg.fecha+'<br><b>Fotos:</b> '+(reg.fotos||6)+'<br><br><a href="https://raw.githubusercontent.com/robertohernandez-design/siba/main/'+reg.pdf+'" target="_blank" style="color:#0a7a3c;font-weight:bold">📄 Ver PDF Original en GitHub</a><br><br><span style="color:#d00000;font-weight:bold">⚠️ IMPORTANTE: Si el texto de tu PDF impreso es diferente al cuadro verde de arriba, tu PDF fue editado localmente.</span>';
+  document.getElementById('hashBox').innerHTML = 'HASH: '+reg.hash+'<br>CORTO: '+reg.hash_corto;
+  document.getElementById('fechaVal').textContent = new Date().toLocaleString();
 
  }catch(e){
-  document.getElementById('status').innerHTML='<div class=bad>❌ ERROR<br><span style="font-size:12px">'+e.message+'</span></div>';
+  document.getElementById('status').innerHTML='<div class=bad>❌ ERROR: '+e.message+'</div>';
  }
 }
 run();
