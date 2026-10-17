@@ -1,18 +1,51 @@
 <!DOCTYPE html><html><head><meta charset="UTF-8"><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<style>body{font-family:Arial;padding:10px;background:#f5f5f5} button{width:100%;padding:14px;background:#0a7a3c;color:white;border:none;border-radius:8px;font-weight:bold} #log{background:black;color:#0f0;padding:8px;white-space:pre-wrap;font-size:11px}</style>
+<style>body{font-family:Arial;padding:10px;background:#f5f5f5} button{width:100%;padding:14px;background:#0a7a3c;color:white;border:none;border-radius:8px;font-weight:bold;margin-top:8px} #log{background:black;color:#0f0;padding:8px;white-space:pre-wrap;font-size:11px;max-height:200px;overflow:auto} input,textarea{width:100%;box-sizing:border-box;padding:8px;margin:4px 0} label{font-size:12px;font-weight:bold}</style>
 </head><body>
-<h3>V31 - 057 DEL 23 HASH LIMPIO + QR - FLEX 3-6 FOTOS</h3>
+<h3>V32 - FOLIO DINAMICO AUTO + FECHA EDITABLE - FLEX 3-6 FOTOS</h3>
 <div id="log">LOG...</div>
-Token: <input id="token" type="password" style="width:100%"><button onclick="localStorage.setItem('gh_token',token.value);log('Token OK')">Guardar Token</button>
-Fecha BITACORA FIJA 23: <input id="fecha" value="23/09/2026 18:30:00" style="width:100%">
-<textarea id="actividad" rows="8" style="width:100%">MANTENIMIENTO A DISPENSARIOS - CAMBIO DE BREAKAWAY Y FILTROS
-ESTACION ES0477 IGUALA GRO</textarea>
-Fotos 3 a 6: <input type="file" id="fotos" multiple accept="image/*"><div id="preview" style="display:flex;gap:4px;flex-wrap:wrap;margin:6px 0"></div>
+Token: <input id="token" type="password"><button onclick="localStorage.setItem('gh_token',token.value);log('Token OK')" style="background:#333">Guardar Token</button>
+<hr>
+<label>Fecha (EDITABLE - hoy por defecto, cambiala a 14/10 si quieres):</label>
+<input id="fecha" value="">
+<label>Numero de Folio (EDITABLE):</label>
+<input id="numFolio" type="number" value="58" style="width:30%"> <small>Se genera como ES0477-YYYY-MM-DD-0XX</small>
+<label>Actividad:</label>
+<textarea id="actividad" rows="6">CAMBIO DE DESTORCEDOR DE MANGUERA DE PRODUCTO MAGNA EN POSICION 3 BOMBA 2, YA PRESENTABA FUGA, TAMBIEN SE CAMBIO FILTRO DE PRODUCTO PREMIUM EN LA BOMBA 3 (EL DESPACHO ESTABA MUY LENTO) SE CAMBIA AMBOS Y SE REALIZAN PRUEBAS DE FUNCIONAMIENTO Y JARREOS CORRESPONDIENTES DE PRODUCTO.</textarea>
+<label>Fotos 3 a 6:</label> <input type="file" id="fotos" multiple accept="image/*"><div id="preview" style="display:flex;gap:4px;flex-wrap:wrap;margin:6px 0"></div>
 <button id="btn" disabled>Selecciona minimo 3 fotos</button>
 <script>
-function log(t){document.getElementById('log').textContent+='\n'+t}
-async function sha256(s){let b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)); return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('')}
+function log(t){let l=document.getElementById('log'); l.textContent+='\n'+t; l.scrollTop=l.scrollHeight; }
+async function sha256(s){let b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)); return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');}
+function getFechaHoyFormato(){
+  let now=new Date();
+  let d=String(now.getDate()).padStart(2,'0');
+  let m=String(now.getMonth()+1).padStart(2,'0');
+  let y=now.getFullYear();
+  let hh=String(now.getHours()).padStart(2,'0');
+  let mm=String(now.getMinutes()).padStart(2,'0');
+  return `${d}/${m}/${y} ${hh}:${mm}:00`;
+}
+function getFechaISOForFolio(){
+  let now=new Date();
+  let y=now.getFullYear();
+  let m=String(now.getMonth()+1).padStart(2,'0');
+  let d=String(now.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
+}
 let fotos=[]; token.value=localStorage.getItem('gh_token')||'';
+document.getElementById('fecha').value = getFechaHoyFormato();
+(async()=>{
+  try{
+    let r=await fetch('https://raw.githubusercontent.com/robertohernandez-design/siba/main/folios.json?t='+Date.now());
+    if(r.ok){
+      let arr=await r.json();
+      let nums=arr.map(o=>{let m=(o.folio||'').match(/-(\d+)$/); return m?parseInt(m[1]):0;});
+      let max=Math.max(...nums,57);
+      document.getElementById('numFolio').value=max+1;
+      log('Ultimo folio: '+max+' -> siguiente: '+(max+1));
+    }
+  }catch(e){log('Usando 58 por defecto');}
+})();
 let fotos_input=document.getElementById('fotos'); let preview=document.getElementById('preview'); let btn=document.getElementById('btn');
 fotos_input.addEventListener('change',async e=>{
   fotos=[]; preview.innerHTML='';
@@ -24,18 +57,22 @@ fotos_input.addEventListener('change',async e=>{
   }
   if(fotos.length>=3){
     btn.disabled=false;
-    btn.textContent='GENERAR 057 NUEVO DEL 23 LIMPIO CON QR - '+fotos.length+' FOTOS';
+    btn.textContent='GENERAR FOLIO '+document.getElementById('numFolio').value+' CON '+fotos.length+' FOTOS';
     log(fotos.length+' fotos OK');
   } else {
     btn.disabled=true;
     btn.textContent='Selecciona minimo 3 fotos (llevas '+fotos.length+')';
   }
 });
+document.getElementById('numFolio').addEventListener('input',()=>{ if(fotos.length>=3) btn.textContent='GENERAR FOLIO '+document.getElementById('numFolio').value+' CON '+fotos.length+' FOTOS'; });
 btn.onclick=async()=>{
  let tok=token.value||localStorage.getItem('gh_token'); if(!tok){alert('token');return;}
  if(fotos.length<3){alert('Minimo 3 fotos');return;}
  let actividad=document.getElementById('actividad').value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x00-\x7F]/g,' ').toUpperCase().replace(/\s+/g,' ').trim();
- let folioBase='ES0477-2026-09-23-057'; let fecha=document.getElementById('fecha').value.trim();
+ let num=String(document.getElementById('numFolio').value).padStart(3,'0');
+ let fechaISO=getFechaISOForFolio();
+ let folioBase=`ES0477-${fechaISO}-${num}`;
+ let fecha=document.getElementById('fecha').value.trim();
  let hash=await sha256(folioBase+actividad+fecha); let hashCorto=hash.substring(0,24); let folioCompleto=folioBase+'-'+hashCorto;
  log('NUEVO FOLIO: '+folioCompleto);
  let qrUrl=`https://robertohernandez-design.github.io/siba/validador.html?v=${folioCompleto}`;
@@ -48,12 +85,12 @@ btn.onclick=async()=>{
  doc.addImage(qr,'PNG',10,y+5,32,32); doc.setFontSize(9); doc.text('ESCANEA PARA VALIDAR',50,y+15); doc.setFontSize(7); doc.text(qrUrl,50,y+22);
  let blob=doc.output('blob'); let b64=await new Promise(r=>{let fr=new FileReader(); fr.onload=()=>r(fr.result.split(',')[1]); fr.readAsDataURL(blob)});
  let repo='robertohernandez-design/siba'; let path='documentos/'+folioCompleto+'.pdf';
- let resp=await fetch(`https://api.github.com/repos/${repo}/contents/${path}`,{method:'PUT',headers:{Authorization:'token '+tok,'Content-Type':'application/json'},body:JSON.stringify({message:'Nuevo 057 23 '+folioCompleto,content:b64})});
+ let resp=await fetch(`https://api.github.com/repos/${repo}/contents/${path}`,{method:'PUT',headers:{Authorization:'token '+tok,'Content-Type':'application/json'},body:JSON.stringify({message:'Nuevo '+folioCompleto,content:b64})});
  log('PDF: '+resp.status);
  let f1=await fetch(`https://api.github.com/repos/${repo}/contents/folios.json`,{headers:{Authorization:'token '+tok}}); let d1=await f1.json(); let arr=JSON.parse(decodeURIComponent(escape(atob(d1.content))));
- arr=arr.filter(f=>f.folio!==folioBase); arr.push({folio:folioBase,folio_completo:folioCompleto,hash:hash,hash_corto:hashCorto,fecha:fecha,timestamp:new Date().toISOString(),estacion:'ES0477',folio_interno:'057',actividad:actividad,fotos:fotos.length,pdf:path});
+ arr=arr.filter(f=>f.folio!==folioBase); arr.push({folio:folioBase,folio_completo:folioCompleto,hash:hash,hash_corto:hashCorto,fecha:fecha,timestamp:new Date().toISOString(),estacion:'ES0477',folio_interno:num,actividad:actividad,fotos:fotos.length,pdf:path});
  let nuevo=btoa(unescape(encodeURIComponent(JSON.stringify(arr,null,2))));
- let up=await fetch(`https://api.github.com/repos/${repo}/contents/folios.json`,{method:'PUT',headers:{Authorization:'token '+tok,'Content-Type':'application/json'},body:JSON.stringify({message:'nuevo 057',content:nuevo,sha:d1.sha})});
- log('folios.json: '+up.status); if(up.ok){alert('✅ LISTO 057 DEL 23\n'+folioCompleto+'\nFotos: '+fotos.length); log('✅ '+qrUrl)}
+ let up=await fetch(`https://api.github.com/repos/${repo}/contents/folios.json`,{method:'PUT',headers:{Authorization:'token '+tok,'Content-Type':'application/json'},body:JSON.stringify({message:'nuevo '+num,content:nuevo,sha:d1.sha})});
+ log('folios.json: '+up.status); if(up.ok){alert('✅ LISTO '+folioBase+'\n'+folioCompleto+'\nFotos: '+fotos.length); log('✅ '+qrUrl); localStorage.setItem('ultimoFolio',num);}
 };
 </script></body></html>
