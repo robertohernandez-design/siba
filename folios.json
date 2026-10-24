@@ -146,5 +146,18 @@
     "actividad": "SE LIMPIO Y REMOVIO SULFATO A TIERRAS FISICA, SE CHECO QUE ESTUVIERAN CONECTADAS. SE REVISO ALUMBRADO EN GENERAL EN TODAS LAS AREAS DE LA ESTACION.",
     "fotos": 0,
     "pdf": "documentos/ES0477-2026-10-21-063-6bcaf5961ba0348e2429fef5.pdf"
+  },
+  {
+    "folio": "ES0477-2026-10-23-064",
+    "folio_completo": "ES0477-2026-10-23-064-2a92ea95db87f4ace5dc8afb",
+    "hash": "2a92ea95db87f4ace5dc8afbf7f6dc8785ddcf58968b551bdbcf85abe3c88f08",
+    "hash_corto": "2a92ea95db87f4ace5dc8afb",
+    "fecha": "23/10/2026 13:02:00",
+    "timestamp": "2026-10-24T01:04:27.263Z",
+    "estacion": "ES0477",
+    "folio_interno": "064",
+    "actividad": "CAMBIO DE DESTORCEDOR DE MANGUERA DE PRODUCTO PREMIUM EN POSICION 3 BOMBA 2, YA PRESENTABA FUGA, SE REALIZAN PRUEBAS DE FUNCIONAMIENTO Y JARREOS CORRESPONDIENTES DE PRODUCTO.",
+    "fotos": 5,
+    "pdf": "documentos/ES0477-2026-10-23-064-2a92ea95db87f4ace5dc8afb.pdf"
   }
 ]
