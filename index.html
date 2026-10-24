@@ -1,18 +1,18 @@
 <!DOCTYPE html><html><head><meta charset="UTF-8"><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>body{font-family:Arial;padding:10px;background:#f5f5f5} button{width:100%;padding:14px;background:#0a7a3c;color:white;border:none;border-radius:8px;font-weight:bold;margin-top:8px} #log{background:black;color:#0f0;padding:8px;white-space:pre-wrap;font-size:11px;max-height:200px;overflow:auto} input,textarea{width:100%;box-sizing:border-box;padding:8px;margin:4px 0} label{font-size:12px;font-weight:bold}</style>
 </head><body>
-<h3>V33 - FOLIO AUTO-BLOQUEADO + DESCARGA AUTO</h3>
+<h3>V34 - FOLIO AUTO-BLOQUEADO + 0 FOTOS PERMITIDO</h3>
 <div id="log">LOG...</div>
 Token: <input id="token" type="password"><button onclick="localStorage.setItem('gh_token',token.value);log('Token OK')" style="background:#333">Guardar Token</button>
 <hr>
 <label>Fecha (EDITABLE para el PDF):</label>
 <input id="fecha" value="">
-<label>Folio Siguiente (AUTOMATICO - no editable para no duplicar):</label>
+<label>Folio Siguiente (AUTOMATICO):</label>
 <input id="numFolio" type="text" readonly style="background:#ddd;font-weight:bold;text-align:center">
 <label>Actividad:</label>
 <textarea id="actividad" rows="6">CAMBIO DE DESTORCEDOR DE MANGUERA DE PRODUCTO MAGNA EN POSICION 3 BOMBA 2, YA PRESENTABA FUGA, TAMBIEN SE CAMBIO FILTRO DE PRODUCTO PREMIUM EN LA BOMBA 3 (EL DESPACHO ESTABA MUY LENTO) SE CAMBIA AMBOS Y SE REALIZAN PRUEBAS DE FUNCIONAMIENTO Y JARREOS CORRESPONDIENTES DE PRODUCTO.</textarea>
-<label>Fotos 3 a 6:</label> <input type="file" id="fotos" multiple accept="image/*"><div id="preview" style="display:flex;gap:4px;flex-wrap:wrap;margin:6px 0"></div>
-<button id="btn" disabled>Selecciona minimo 3 fotos</button>
+<label>Fotos (OPCIONAL - 0 a 6):</label> <input type="file" id="fotos" multiple accept="image/*"><div id="preview" style="display:flex;gap:4px;flex-wrap:wrap;margin:6px 0"></div>
+<button id="btn">GENERAR FOLIO (SIN FOTOS TAMBIEN)</button>
 <script>
 function log(t){let l=document.getElementById('log'); l.textContent+='\n'+t; l.scrollTop=l.scrollHeight; }
 async function sha256(s){let b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)); return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');}
@@ -54,17 +54,11 @@ fotos_input.addEventListener('change',async e=>{
     fotos.push(b);
     let im=document.createElement('img'); im.src=b; im.style.width='32%'; preview.appendChild(im);
   }
-  if(fotos.length>=3){
-    btn.disabled=false;
-    btn.textContent='GENERAR FOLIO '+document.getElementById('numFolio').value+' CON '+fotos.length+' FOTOS (DESCARGA AUTO)';
-  } else {
-    btn.disabled=true;
-    btn.textContent='Selecciona minimo 3 fotos (llevas '+fotos.length+')';
-  }
+  btn.textContent='GENERAR FOLIO '+document.getElementById('numFolio').value+' CON '+fotos.length+' FOTOS (DESCARGA AUTO)';
+  if(fotos.length==0){ btn.textContent='GENERAR FOLIO '+document.getElementById('numFolio').value+' SIN FOTOS (DESCARGA AUTO)'; }
 });
 btn.onclick=async()=>{
  let tok=token.value||localStorage.getItem('gh_token'); if(!tok){alert('token');return;}
- if(fotos.length<3){alert('Minimo 3 fotos');return;}
  let actividad=document.getElementById('actividad').value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x00-\x7F]/g,' ').toUpperCase().replace(/\s+/g,' ').trim();
  let num=document.getElementById('numFolio').value;
  let fechaISO=getFechaISOForFolio();
@@ -81,7 +75,6 @@ btn.onclick=async()=>{
    i++;} y+=42;}
  doc.addImage(qr,'PNG',10,y+5,32,32); doc.setFontSize(9); doc.text('ESCANEA PARA VALIDAR',50,y+15); doc.setFontSize(7); doc.text(qrUrl,50,y+22);
  
- // DESCARGA AUTOMATICA
  let blob=doc.output('blob');
  let urlBlob=URL.createObjectURL(blob);
  let a=document.createElement('a'); a.href=urlBlob; a.download=folioCompleto+'.pdf'; document.body.appendChild(a); a.click();
